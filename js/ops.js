@@ -17,7 +17,6 @@ Ops.Extension=Ops.Extension || {};
 Ops.Gl.Matrix=Ops.Gl.Matrix || {};
 Ops.Gl.Meshes=Ops.Gl.Meshes || {};
 Ops.Gl.Shader=Ops.Gl.Shader || {};
-Ops.Gl.ImageCompose=Ops.Gl.ImageCompose || {};
 Ops.Graphics.Geometry=Ops.Graphics.Geometry || {};
 Ops.Extension.OpenType=Ops.Extension.OpenType || {};
 
@@ -619,244 +618,6 @@ function unbind()
 };
 
 CABLES.OPS["0655b098-d2a8-4ce2-a0b9-ecb2c78f873a"]={f:Ops.Graphics.OrbitControls_v3,objName:"Ops.Graphics.OrbitControls_v3"};
-
-
-
-
-// **************************************************************
-// 
-// Ops.Gl.Texture_v2
-// 
-// **************************************************************
-
-Ops.Gl.Texture_v2= class extends CABLES.Op 
-{
-constructor()
-{
-super(...arguments);
-const op=this;
-const attachments=op.attachments={};
-const
-    filename = op.inUrl("File", [".jpg", ".png", ".webp", ".jpeg", ".avif"]),
-    tfilter = op.inSwitch("Filter", ["nearest", "linear", "mipmap"]),
-    wrap = op.inValueSelect("Wrap", ["repeat", "mirrored repeat", "clamp to edge"], "clamp to edge"),
-    aniso = op.inSwitch("Anisotropic", ["0", "1", "2", "4", "8", "16"], "0"),
-    dataFrmt = op.inSwitch("Data Format", ["R", "RG", "RGB", "RGBA", "SRGBA"], "RGBA"),
-    flip = op.inValueBool("Flip", false),
-    unpackAlpha = op.inValueBool("Pre Multiplied Alpha", false),
-    active = op.inValueBool("Active", true),
-    inFreeMemory = op.inBool("Save Memory", true),
-    textureOut = op.outTexture("Texture"),
-    addCacheBust = op.inBool("Add Cachebuster", false),
-    inReload = op.inTriggerButton("Reload"),
-    width = op.outNumber("Width"),
-    height = op.outNumber("Height"),
-    ratio = op.outNumber("Aspect Ratio"),
-    loaded = op.outBoolNum("Loaded", 0),
-    loading = op.outBoolNum("Loading", 0);
-
-const cgl = op.patch.cgl;
-
-op.toWorkPortsNeedToBeLinked(textureOut);
-op.setPortGroup("Size", [width, height]);
-
-let loadedFilename = null;
-let loadingId = null;
-let tex = null;
-let cgl_filter = CGL.Texture.FILTER_MIPMAP;
-let cgl_wrap = CGL.Texture.WRAP_REPEAT;
-let cgl_aniso = 0;
-let timedLoader = 0;
-
-unpackAlpha.setUiAttribs({ "hidePort": true });
-unpackAlpha.onChange =
-    filename.onChange =
-    dataFrmt.onChange =
-    addCacheBust.onChange =
-    flip.onChange = reloadSoon;
-aniso.onChange = tfilter.onChange = onFilterChange;
-wrap.onChange = onWrapChange;
-
-tfilter.set("mipmap");
-wrap.set("repeat");
-
-textureOut.setRef(CGL.Texture.getEmptyTexture(cgl));
-
-inReload.onTriggered = reloadSoon;
-
-active.onChange = function ()
-{
-    if (active.get())
-    {
-        if (loadedFilename != filename.get() || !tex) reloadSoon();
-        else textureOut.setRef(tex);
-    }
-    else
-    {
-        textureOut.setRef(CGL.Texture.getEmptyTexture(cgl));
-        width.set(CGL.Texture.getEmptyTexture(cgl).width);
-        height.set(CGL.Texture.getEmptyTexture(cgl).height);
-        if (tex)tex.delete();
-        op.setUiAttrib({ "extendTitle": "" });
-        tex = null;
-    }
-};
-
-const setTempTexture = function ()
-{
-    const t = CGL.Texture.getTempTexture(cgl);
-    textureOut.setRef(t);
-};
-
-function reloadSoon(nocache)
-{
-    clearTimeout(timedLoader);
-    timedLoader = setTimeout(function ()
-    {
-        realReload(nocache);
-    }, 1);
-}
-
-function getPixelFormat()
-{
-    if (dataFrmt.get() == "R") return CGL.Texture.PFORMATSTR_R8UB;
-    if (dataFrmt.get() == "RG") return CGL.Texture.PFORMATSTR_RG8UB;
-    if (dataFrmt.get() == "RGB") return CGL.Texture.PFORMATSTR_RGB8UB;
-    if (dataFrmt.get() == "SRGBA") return CGL.Texture.PFORMATSTR_SRGBA8;
-
-    return CGL.Texture.PFORMATSTR_RGBA8UB;
-}
-
-function realReload(nocache)
-{
-    op.checkMainloopExists();
-    if (!active.get()) return;
-    if (loadingId)loadingId = cgl.patch.loading.finished(loadingId);
-
-    loadingId = cgl.patch.loading.start(op.objName, filename.get(), op);
-
-    let url = op.patch.getFilePath(String(filename.get()));
-
-    if (addCacheBust.get() || nocache === true) url = CABLES.cacheBust(url);
-
-    if (String(filename.get()).indexOf("data:") == 0) url = filename.get();
-
-    let needsRefresh = false;
-    loadedFilename = filename.get();
-
-    if ((filename.get() && filename.get().length > 1))
-    {
-        loaded.set(false);
-        loading.set(true);
-
-        const fileToLoad = filename.get();
-
-        op.setUiAttrib({ "extendTitle": CABLES.basename(url) });
-        if (needsRefresh) op.refreshParams();
-
-        cgl.patch.loading.addAssetLoadingTask(() =>
-        {
-            op.setUiError("urlerror", null);
-            CGL.Texture.load(cgl, url, function (err, newTex)
-            {
-                // cgl.checkFrameStarted("texture inittexture");
-
-                if (filename.get() != fileToLoad)
-                {
-                    loadingId = cgl.patch.loading.finished(loadingId);
-                    return;
-                }
-
-                if (tex)tex.delete();
-
-                if (err)
-                {
-                    const t = CGL.Texture.getErrorTexture(cgl);
-                    textureOut.setRef(t);
-
-                    op.setUiError("urlerror", "could not load texture: \"" + filename.get() + "\"", 2);
-                    loadingId = cgl.patch.loading.finished(loadingId);
-                    return;
-                }
-
-                // textureOut.setRef(newTex);
-
-                width.set(newTex.width);
-                height.set(newTex.height);
-                ratio.set(newTex.width / newTex.height);
-
-                // if (!newTex.isPowerOfTwo()) op.setUiError("npot", "Texture dimensions not power of two! - Texture filtering will not work in WebGL 1.", 0);
-                // else op.setUiError("npot", null);
-
-                tex = newTex;
-                // textureOut.setRef(null);
-                textureOut.setRef(tex);
-
-                loading.set(false);
-                loaded.set(true);
-
-                if (inFreeMemory.get()) tex.image = null;
-
-                if (loadingId)
-                {
-                    loadingId = cgl.patch.loading.finished(loadingId);
-                }
-                op.checkMainloopExists();
-            }, {
-                "anisotropic": cgl_aniso,
-                "wrap": cgl_wrap,
-                "flip": flip.get(),
-                "unpackAlpha": unpackAlpha.get(),
-                "pixelFormat": getPixelFormat(),
-                "filter": cgl_filter
-            });
-
-            op.checkMainloopExists();
-        });
-    }
-    else
-    {
-        setTempTexture();
-        loadingId = cgl.patch.loading.finished(loadingId);
-    }
-}
-
-function onFilterChange()
-{
-    if (tfilter.get() == "nearest") cgl_filter = CGL.Texture.FILTER_NEAREST;
-    else if (tfilter.get() == "linear") cgl_filter = CGL.Texture.FILTER_LINEAR;
-    else if (tfilter.get() == "mipmap") cgl_filter = CGL.Texture.FILTER_MIPMAP;
-    else if (tfilter.get() == "Anisotropic") cgl_filter = CGL.Texture.FILTER_ANISOTROPIC;
-    aniso.setUiAttribs({ "greyout": cgl_filter != CGL.Texture.FILTER_MIPMAP });
-
-    cgl_aniso = parseFloat(aniso.get());
-
-    reloadSoon();
-}
-
-function onWrapChange()
-{
-    if (wrap.get() == "repeat") cgl_wrap = CGL.Texture.WRAP_REPEAT;
-    if (wrap.get() == "mirrored repeat") cgl_wrap = CGL.Texture.WRAP_MIRRORED_REPEAT;
-    if (wrap.get() == "clamp to edge") cgl_wrap = CGL.Texture.WRAP_CLAMP_TO_EDGE;
-
-    reloadSoon();
-}
-
-op.onFileChanged = function (fn)
-{
-    if (filename.get() && filename.get().indexOf(fn) > -1)
-    {
-        textureOut.setRef(CGL.Texture.getEmptyTexture(op.patch.cgl));
-        textureOut.setRef(CGL.Texture.getTempTexture(cgl));
-        realReload(true);
-    }
-};
-
-}
-};
-
-CABLES.OPS["790f3702-9833-464e-8e37-6f0f813f7e16"]={f:Ops.Gl.Texture_v2,objName:"Ops.Gl.Texture_v2"};
 
 
 
@@ -3399,658 +3160,6 @@ inGeom.onChange = () =>
 };
 
 CABLES.OPS["64a34a29-000d-4350-875f-5b72b97a314f"]={f:Ops.Graphics.Geometry.GeometryExtrude,objName:"Ops.Graphics.Geometry.GeometryExtrude"};
-
-
-
-
-// **************************************************************
-// 
-// Ops.Gl.ImageCompose.ImageCompose_v4
-// 
-// **************************************************************
-
-Ops.Gl.ImageCompose.ImageCompose_v4= class extends CABLES.Op 
-{
-constructor()
-{
-super(...arguments);
-const op=this;
-const attachments=op.attachments={"imgcomp_frag":"IN vec2 texCoord;\r\nUNI vec4 bgColor;\r\nUNI sampler2D tex;\r\n#ifdef USE_UVTEX\r\nUNI sampler2D UVTex;\r\n#endif\r\n\r\nvoid main()\r\n{\r\n\r\n    #ifndef USE_TEX\r\n        outColor=bgColor;\r\n    #endif\r\n    #ifdef USE_TEX\r\n        #ifndef USE_UVTEX\r\n        outColor=texture(tex,texCoord);\r\n        #else\r\n        outColor=texture(tex,texture(UVTex,texCoord).xy);\r\n        #endif\r\n    #endif\r\n\r\n\r\n\r\n}\r\n",};
-const
-    cgl = op.patch.cgl,
-    render = op.inTrigger("Render"),
-    inTex = op.inTexture("Base Texture"),
-    inUVTex = op.inTexture("UV Texture"),
-    inSize = op.inSwitch("Size", ["Auto", "Canvas", "Manual"], "Auto"),
-    width = op.inValueInt("Width", 640),
-    height = op.inValueInt("Height", 480),
-    inFilter = op.inSwitch("Filter", ["nearest", "linear", "mipmap"], "linear"),
-    inWrap = op.inValueSelect("Wrap", ["clamp to edge", "repeat", "mirrored repeat"], "repeat"),
-    aniso = op.inSwitch("Anisotropic", ["0", "1", "2", "4", "8", "16"], "0"),
-
-    inPixelFormat = op.inDropDown("Pixel Format", CGL.Texture.PIXELFORMATS, CGL.Texture.PFORMATSTR_RGBA8UB),
-
-    inClear = op.inBool("Clear", true),
-    r = op.inValueSlider("R", 0),
-    g = op.inValueSlider("G", 0),
-    b = op.inValueSlider("B", 0),
-    a = op.inValueSlider("A", 0),
-
-    trigger = op.outTrigger("Next"),
-    texOut = op.outTexture("texture_out", CGL.Texture.getEmptyTexture(cgl)),
-    outRatio = op.outNumber("Aspect Ratio"),
-    outWidth = op.outNumber("Texture Width"),
-    outHeight = op.outNumber("Texture Height");
-
-op.setPortGroup("Texture Size", [inSize, width, height]);
-op.setPortGroup("Texture Parameters", [inWrap, aniso, inFilter, inPixelFormat]);
-
-r.setUiAttribs({ "colorPick": true });
-op.setPortGroup("Color", [r, g, b, a, inClear]);
-
-op.toWorkPortsNeedToBeLinked(render);
-
-const prevViewPort = [0, 0, 0, 0];
-let effect = null;
-let tex = null;
-let reInitEffect = true;
-let isFloatTex = false;
-let copyShader = null;
-let copyShaderTexUni = null;
-let copyShaderUVTexUni = null;
-let copyShaderRGBAUni = null;
-
-inWrap.onChange =
-inFilter.onChange =
-aniso.onChange =
-inPixelFormat.onChange = reInitLater;
-
-inTex.onLinkChanged =
-inClear.onChange =
-    inSize.onChange =
-    inUVTex.onChange = updateUi;
-
-render.onTriggered =
-    op.preRender = doRender;
-
-updateUi();
-
-function initEffect()
-{
-    if (effect)effect.delete();
-    if (tex)tex.delete();
-    tex = null;
-    effect = new CGL.TextureEffect(cgl, { "isFloatingPointTexture": CGL.Texture.isPixelFormatFloat(inPixelFormat.get()), "name": op.name });
-
-    const cgl_aniso = Math.min(cgl.maxAnisotropic, parseFloat(aniso.get()));
-
-    tex = new CGL.Texture(cgl,
-        {
-            "anisotropic": cgl_aniso,
-            "name": "image_compose_v2_" + op.id,
-            "pixelFormat": inPixelFormat.get(),
-            "filter": getFilter(),
-            "wrap": getWrap(),
-            "width": getWidth(),
-            "height": getHeight()
-        });
-
-    effect.setSourceTexture(tex);
-
-    outWidth.set(getWidth());
-    outHeight.set(getHeight());
-    outRatio.set(getWidth() / getHeight());
-
-    texOut.setRef(CGL.Texture.getEmptyTexture(cgl));
-
-    reInitEffect = false;
-    updateUi();
-}
-
-function getFilter()
-{
-    if (inFilter.get() == "nearest") return CGL.Texture.FILTER_NEAREST;
-    else if (inFilter.get() == "linear") return CGL.Texture.FILTER_LINEAR;
-    else if (inFilter.get() == "mipmap") return CGL.Texture.FILTER_MIPMAP;
-}
-
-function getWrap()
-{
-    if (inWrap.get() == "repeat") return CGL.Texture.WRAP_REPEAT;
-    else if (inWrap.get() == "mirrored repeat") return CGL.Texture.WRAP_MIRRORED_REPEAT;
-    else if (inWrap.get() == "clamp to edge") return CGL.Texture.WRAP_CLAMP_TO_EDGE;
-}
-
-function getWidth()
-{
-    let x = 0;
-    if (inTex.get() && inSize.get() == "Auto") x = inTex.get().width;
-    else if (inSize.get() == "Auto" || inSize.get() == "Canvas") x = cgl.canvasWidth;
-    else if (inSize.get() == "ViewPort") x = cgl.getViewPort()[2];
-    else x = Math.ceil(width.get());
-    return op.patch.cgl.checkTextureSize(x);
-}
-
-function getHeight()
-{
-    let x = 0;
-
-    if (inTex.get() && inSize.get() == "Auto") x = inTex.get().height;
-    else if (inSize.get() == "Auto" || inSize.get() == "Canvas") x = cgl.canvasHeight;
-    else if (inSize.get() == "ViewPort") x = cgl.getViewPort()[3];
-    else x = Math.ceil(height.get());
-    return op.patch.cgl.checkTextureSize(x);
-}
-
-function reInitLater()
-{
-    reInitEffect = true;
-}
-
-function updateResolution()
-{
-    if ((
-        getWidth() != tex.width ||
-        getHeight() != tex.height ||
-        // tex.anisotropic != parseFloat(aniso.get()) ||
-        // tex.isFloatingPoint() != CGL.Texture.isPixelFormatFloat(inPixelFormat.get()) ||
-        tex.pixelFormat != inPixelFormat.get() ||
-        tex.filter != getFilter() ||
-        tex.wrap != getWrap()
-    ) && (getWidth() !== 0 && getHeight() !== 0))
-    {
-        initEffect();
-        effect.setSourceTexture(tex);
-        // texOut.set(CGL.Texture.getEmptyTexture(cgl));
-        texOut.setRef(tex);
-        updateResolutionInfo();
-        checkTypes();
-    }
-}
-
-function updateResolutionInfo()
-{
-    let info = null;
-
-    if (inSize.get() == "Manual")
-    {
-        info = null;
-    }
-    else if (inSize.get() == "Auto")
-    {
-        if (inTex.get()) info = "Input Texture";
-        else info = "Canvas Size";
-
-        info += ": " + getWidth() + " x " + getHeight();
-    }
-
-    let changed = false;
-    changed = inSize.uiAttribs.info != info;
-    inSize.setUiAttribs({ "info": info });
-    if (changed)op.refreshParams();
-}
-
-function updateDefines()
-{
-    if (copyShader)copyShader.toggleDefine("USE_TEX", inTex.isLinked() || !inClear.get());
-    if (copyShader)copyShader.toggleDefine("USE_UVTEX", inUVTex.isLinked());
-}
-
-function updateUi()
-{
-    aniso.setUiAttribs({ "greyout": getFilter() != CGL.Texture.FILTER_MIPMAP });
-
-    r.setUiAttribs({ "greyout": inTex.isLinked() });
-    b.setUiAttribs({ "greyout": inTex.isLinked() });
-    g.setUiAttribs({ "greyout": inTex.isLinked() });
-    a.setUiAttribs({ "greyout": inTex.isLinked() });
-
-    inClear.setUiAttribs({ "greyout": inTex.isLinked() });
-    width.setUiAttribs({ "greyout": inSize.get() != "Manual" });
-    height.setUiAttribs({ "greyout": inSize.get() != "Manual" });
-
-    // width.setUiAttribs({ "hideParam": inSize.get() != "Manual" });
-    // height.setUiAttribs({ "hideParam": inSize.get() != "Manual" });
-
-    if (tex)
-        if (CGL.Texture.isPixelFormatFloat(inPixelFormat.get()) && getFilter() == CGL.Texture.FILTER_MIPMAP) op.setUiError("fpmipmap", "Don't use mipmap and 32bit at the same time, many systems do not support this.");
-        else op.setUiError("fpmipmap", null);
-
-    updateResolutionInfo();
-    updateDefines();
-    checkTypes();
-}
-
-function checkTypes()
-{
-    if (tex)
-        if (inTex.isLinked() && inTex.get() && (tex.isFloatingPoint() < inTex.get().isFloatingPoint()))
-            op.setUiError("textypediff", "Warning: Mixing floating point and non floating point texture can result in data/precision loss", 1);
-        else
-            op.setUiError("textypediff", null);
-}
-
-op.preRender = () =>
-{
-    doRender();
-};
-
-function copyTexture()
-{
-    if (!copyShader)
-    {
-        copyShader = new CGL.Shader(cgl, "copytextureshader");
-        copyShader.setSource(copyShader.getDefaultVertexShader(), attachments.imgcomp_frag);
-        copyShaderTexUni = new CGL.Uniform(copyShader, "t", "tex", 0);
-        copyShaderUVTexUni = new CGL.Uniform(copyShader, "t", "UVTex", 1);
-        copyShaderRGBAUni = new CGL.Uniform(copyShader, "4f", "bgColor", r, g, b, a);
-        updateDefines();
-    }
-
-    cgl.pushShader(copyShader);
-    cgl.currentTextureEffect.bind();
-
-    if (inTex.get()) cgl.setTexture(0, inTex.get().tex);
-    else if (!inClear.get() && texOut.get()) cgl.setTexture(0, texOut.get().tex);
-    if (inUVTex.get()) cgl.setTexture(1, inUVTex.get().tex);
-
-    cgl.currentTextureEffect.finish();
-    cgl.popShader();
-}
-
-function doRender()
-{
-    if (!effect || reInitEffect) initEffect();
-
-    cgl.pushBlend(false);
-
-    updateResolution();
-
-    const oldEffect = cgl.currentTextureEffect;
-    cgl.currentTextureEffect = effect;
-    cgl.currentTextureEffect.imgCompVer = 3;
-    cgl.currentTextureEffect.width = width.get();
-    cgl.currentTextureEffect.height = height.get();
-    effect.setSourceTexture(tex);
-
-    effect.startEffect(inTex.get() || CGL.Texture.getEmptyTexture(cgl, isFloatTex), true);
-    copyTexture();
-
-    trigger.trigger();
-
-    cgl.pushViewPort(0, 0, width.get(), height.get());
-
-    effect.endEffect();
-    texOut.setRef(effect.getCurrentSourceTexture());
-
-    cgl.popViewPort();
-
-    cgl.popBlend();
-    cgl.currentTextureEffect = oldEffect;
-}
-
-}
-};
-
-CABLES.OPS["17212e2b-d692-464c-8f8d-2d511dd3410a"]={f:Ops.Gl.ImageCompose.ImageCompose_v4,objName:"Ops.Gl.ImageCompose.ImageCompose_v4"};
-
-
-
-
-// **************************************************************
-// 
-// Ops.Gl.ImageCompose.DrawImage_v3
-// 
-// **************************************************************
-
-Ops.Gl.ImageCompose.DrawImage_v3= class extends CABLES.Op 
-{
-constructor()
-{
-super(...arguments);
-const op=this;
-const attachments=op.attachments={"drawimage_frag":"#ifdef HAS_TEXTURES\r\n    IN vec2 texCoord;\r\n    UNI sampler2D tex;\r\n    UNI sampler2D image;\r\n#endif\r\n\r\n#ifdef TEX_TRANSFORM\r\n    IN mat3 transform;\r\n#endif\r\n// UNI float rotate;\r\n\r\n{{CGL.BLENDMODES}}\r\n\r\n#ifdef HAS_TEXTUREALPHA\r\n   UNI sampler2D imageAlpha;\r\n#endif\r\n\r\nUNI float amount;\r\n\r\n#ifdef ASPECT_RATIO\r\n    UNI float aspectTex;\r\n    UNI float aspectPos;\r\n#endif\r\n\r\nvoid main()\r\n{\r\n    vec4 blendRGBA=vec4(0.0,0.0,0.0,1.0);\r\n\r\n    #ifdef HAS_TEXTURES\r\n        vec2 tc=texCoord;\r\n\r\n        #ifdef TEX_FLIP_X\r\n            tc.x=1.0-tc.x;\r\n        #endif\r\n        #ifdef TEX_FLIP_Y\r\n            tc.y=1.0-tc.y;\r\n        #endif\r\n\r\n        #ifdef ASPECT_RATIO\r\n            #ifdef ASPECT_AXIS_X\r\n                tc.y=(1.0-aspectPos)-(((1.0-aspectPos)-tc.y)*aspectTex);\r\n            #endif\r\n            #ifdef ASPECT_AXIS_Y\r\n                tc.x=(1.0-aspectPos)-(((1.0-aspectPos)-tc.x)/aspectTex);\r\n            #endif\r\n        #endif\r\n\r\n        #ifdef TEX_TRANSFORM\r\n            vec3 coordinates=vec3(tc.x, tc.y,1.0);\r\n            tc=(transform * coordinates ).xy;\r\n        #endif\r\n\r\n        blendRGBA=texture(image,tc);\r\n\r\n        vec3 blend=blendRGBA.rgb;\r\n        vec4 baseRGBA=texture(tex,texCoord);\r\n        vec3 base=baseRGBA.rgb;\r\n\r\n\r\n        #ifdef PREMUL\r\n            blend.rgb = (blend.rgb) + (base.rgb * (1.0 - blendRGBA.a));\r\n        #endif\r\n\r\n        vec3 colNew=_blend(base,blend);\r\n\r\n\r\n\r\n\r\n        #ifdef REMOVE_ALPHA_SRC\r\n            blendRGBA.a=1.0;\r\n        #endif\r\n\r\n        #ifdef HAS_TEXTUREALPHA\r\n            vec4 colImgAlpha=texture(imageAlpha,tc);\r\n            float colImgAlphaAlpha=colImgAlpha.a;\r\n\r\n            #ifdef ALPHA_FROM_LUMINANCE\r\n                vec3 gray = vec3(dot(vec3(0.2126,0.7152,0.0722), colImgAlpha.rgb ));\r\n                colImgAlphaAlpha=(gray.r+gray.g+gray.b)/3.0;\r\n            #endif\r\n\r\n            #ifdef ALPHA_FROM_INV_UMINANCE\r\n                vec3 gray = vec3(dot(vec3(0.2126,0.7152,0.0722), colImgAlpha.rgb ));\r\n                colImgAlphaAlpha=1.0-(gray.r+gray.g+gray.b)/3.0;\r\n            #endif\r\n\r\n            #ifdef INVERT_ALPHA\r\n                colImgAlphaAlpha=clamp(colImgAlphaAlpha,0.0,1.0);\r\n                colImgAlphaAlpha=1.0-colImgAlphaAlpha;\r\n            #endif\r\n\r\n            blendRGBA.a=colImgAlphaAlpha*blendRGBA.a;\r\n        #endif\r\n    #endif\r\n\r\n    float am=amount;\r\n\r\n    #ifdef CLIP_REPEAT\r\n        if(tc.y>1.0 || tc.y<0.0 || tc.x>1.0 || tc.x<0.0)\r\n        {\r\n            // colNew.rgb=vec3(0.0);\r\n            am=0.0;\r\n        }\r\n    #endif\r\n\r\n    #ifdef ASPECT_RATIO\r\n        #ifdef ASPECT_CROP\r\n            if(tc.y>1.0 || tc.y<0.0 || tc.x>1.0 || tc.x<0.0)\r\n            {\r\n                colNew.rgb=base.rgb;\r\n                am=0.0;\r\n            }\r\n\r\n        #endif\r\n    #endif\r\n\r\n\r\n\r\n    #ifndef PREMUL\r\n        blendRGBA.rgb=mix(colNew,base,1.0-(am*blendRGBA.a));\r\n        blendRGBA.a=clamp(baseRGBA.a+(blendRGBA.a*am),0.,1.);\r\n    #endif\r\n\r\n    #ifdef PREMUL\r\n        // premultiply\r\n        // blendRGBA.rgb = (blendRGBA.rgb) + (baseRGBA.rgb * (1.0 - blendRGBA.a));\r\n        blendRGBA=vec4(\r\n            mix(colNew.rgb,base,1.0-(am*blendRGBA.a)),\r\n            blendRGBA.a*am+baseRGBA.a\r\n            );\r\n    #endif\r\n\r\n    #ifdef ALPHA_MASK\r\n    blendRGBA.a=baseRGBA.a;\r\n    #endif\r\n\r\n    outColor=blendRGBA;\r\n}\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n","drawimage_vert":"IN vec3 vPosition;\r\nIN vec2 attrTexCoord;\r\nIN vec3 attrVertNormal;\r\n\r\nUNI mat4 projMatrix;\r\nUNI mat4 mvMatrix;\r\n\r\nOUT vec2 texCoord;\r\n// OUT vec3 norm;\r\n\r\n#ifdef TEX_TRANSFORM\r\n    UNI float posX;\r\n    UNI float posY;\r\n    UNI float scaleX;\r\n    UNI float scaleY;\r\n    UNI float rotate;\r\n    OUT mat3 transform;\r\n#endif\r\n\r\nvoid main()\r\n{\r\n   texCoord=attrTexCoord;\r\n//   norm=attrVertNormal;\r\n\r\n   #ifdef TEX_TRANSFORM\r\n        vec3 coordinates=vec3(attrTexCoord.x, attrTexCoord.y,1.0);\r\n        float angle = radians( rotate );\r\n        vec2 scale= vec2(scaleX,scaleY);\r\n        vec2 translate= vec2(posX,posY);\r\n\r\n        transform = mat3(   scale.x * cos( angle ), scale.x * sin( angle ), 0.0,\r\n            - scale.y * sin( angle ), scale.y * cos( angle ), 0.0,\r\n            - 0.5 * scale.x * cos( angle ) + 0.5 * scale.y * sin( angle ) - 0.5 * translate.x*2.0 + 0.5,  - 0.5 * scale.x * sin( angle ) - 0.5 * scale.y * cos( angle ) - 0.5 * translate.y*2.0 + 0.5, 1.0);\r\n   #endif\r\n\r\n   gl_Position = projMatrix * mvMatrix * vec4(vPosition,  1.0);\r\n}\r\n",};
-const
-    render = op.inTrigger("render"),
-    blendMode = CGL.TextureEffect.AddBlendSelect(op, "blendMode"),
-    amount = op.inValueSlider("amount", 1),
-
-    image = op.inTexture("Image"),
-    inAlphaPremul = op.inValueBool("Premultiplied", false),
-    inAlphaMask = op.inValueBool("Alpha Mask", false),
-    removeAlphaSrc = op.inValueBool("removeAlphaSrc", false),
-
-    imageAlpha = op.inTexture("Mask"),
-    alphaSrc = op.inValueSelect("Mask Src", ["alpha channel", "luminance", "luminance inv"], "luminance"),
-    invAlphaChannel = op.inBool("Invert alpha channel"),
-
-    inAspect = op.inValueBool("Aspect Ratio", false),
-    inAspectAxis = op.inValueSelect("Stretch Axis", ["X", "Y"], "X"),
-    inAspectPos = op.inValueSlider("Position", 0.0),
-    inAspectCrop = op.inValueBool("Crop", false),
-
-    trigger = op.outTrigger("trigger");
-
-blendMode.set("normal");
-const cgl = op.patch.cgl;
-const shader = new CGL.Shader(cgl, "drawimage");
-
-imageAlpha.onLinkChanged = updateAlphaPorts;
-
-op.setPortGroup("Aspect Ratio", [inAspect, inAspectPos, inAspectCrop, inAspectAxis]);
-op.setPortGroup("Mask", [imageAlpha, alphaSrc, invAlphaChannel]);
-
-function updateAlphaPorts()
-{
-    if (imageAlpha.isLinked())
-    {
-        removeAlphaSrc.setUiAttribs({ "greyout": true });
-        alphaSrc.setUiAttribs({ "greyout": false });
-        invAlphaChannel.setUiAttribs({ "greyout": false });
-    }
-    else
-    {
-        removeAlphaSrc.setUiAttribs({ "greyout": false });
-        alphaSrc.setUiAttribs({ "greyout": true });
-        invAlphaChannel.setUiAttribs({ "greyout": true });
-    }
-}
-
-op.toWorkPortsNeedToBeLinked(image);
-
-shader.setSource(attachments.drawimage_vert, attachments.drawimage_frag);
-
-const
-    textureUniform = new CGL.Uniform(shader, "t", "tex", 0),
-    textureImaghe = new CGL.Uniform(shader, "t", "image", 1),
-    textureAlpha = new CGL.Uniform(shader, "t", "imageAlpha", 2),
-    uniTexAspect = new CGL.Uniform(shader, "f", "aspectTex", 1),
-    uniAspectPos = new CGL.Uniform(shader, "f", "aspectPos", inAspectPos);
-
-inAspect.onChange =
-    inAspectCrop.onChange =
-    inAspectAxis.onChange = updateAspectRatio;
-
-function updateAspectRatio()
-{
-    shader.removeDefine("ASPECT_AXIS_X");
-    shader.removeDefine("ASPECT_AXIS_Y");
-    shader.removeDefine("ASPECT_CROP");
-
-    inAspectPos.setUiAttribs({ "greyout": !inAspect.get() });
-    inAspectCrop.setUiAttribs({ "greyout": !inAspect.get() });
-    inAspectAxis.setUiAttribs({ "greyout": !inAspect.get() });
-
-    if (inAspect.get())
-    {
-        shader.define("ASPECT_RATIO");
-
-        if (inAspectCrop.get()) shader.define("ASPECT_CROP");
-
-        if (inAspectAxis.get() == "X") shader.define("ASPECT_AXIS_X");
-        if (inAspectAxis.get() == "Y") shader.define("ASPECT_AXIS_Y");
-    }
-    else
-    {
-        shader.removeDefine("ASPECT_RATIO");
-        if (inAspectCrop.get()) shader.define("ASPECT_CROP");
-
-        if (inAspectAxis.get() == "X") shader.define("ASPECT_AXIS_X");
-        if (inAspectAxis.get() == "Y") shader.define("ASPECT_AXIS_Y");
-    }
-}
-
-//
-// texture flip
-//
-const flipX = op.inValueBool("flip x");
-const flipY = op.inValueBool("flip y");
-
-//
-// texture transform
-//
-
-let doTransform = op.inValueBool("Transform");
-
-let scaleX = op.inValueSlider("Scale X", 1);
-let scaleY = op.inValueSlider("Scale Y", 1);
-
-let posX = op.inValue("Position X", 0);
-let posY = op.inValue("Position Y", 0);
-
-let rotate = op.inValue("Rotation", 0);
-
-const inClipRepeat = op.inValueBool("Clip Repeat", false);
-
-const uniScaleX = new CGL.Uniform(shader, "f", "scaleX", scaleX);
-const uniScaleY = new CGL.Uniform(shader, "f", "scaleY", scaleY);
-const uniPosX = new CGL.Uniform(shader, "f", "posX", posX);
-const uniPosY = new CGL.Uniform(shader, "f", "posY", posY);
-const uniRotate = new CGL.Uniform(shader, "f", "rotate", rotate);
-
-doTransform.onChange = updateTransformPorts;
-
-function updateTransformPorts()
-{
-    shader.toggleDefine("TEX_TRANSFORM", doTransform.get());
-
-    scaleX.setUiAttribs({ "greyout": !doTransform.get() });
-    scaleY.setUiAttribs({ "greyout": !doTransform.get() });
-    posX.setUiAttribs({ "greyout": !doTransform.get() });
-    posY.setUiAttribs({ "greyout": !doTransform.get() });
-    rotate.setUiAttribs({ "greyout": !doTransform.get() });
-}
-
-CGL.TextureEffect.setupBlending(op, shader, blendMode, amount);
-
-const amountUniform = new CGL.Uniform(shader, "f", "amount", amount);
-
-render.onTriggered = doRender;
-
-inClipRepeat.onChange =
-    imageAlpha.onChange =
-    inAlphaPremul.onChange =
-    inAlphaMask.onChange =
-    invAlphaChannel.onChange =
-    flipY.onChange =
-    flipX.onChange =
-    removeAlphaSrc.onChange =
-    alphaSrc.onChange = updateDefines;
-
-updateTransformPorts();
-updateAlphaPorts();
-updateAspectRatio();
-updateDefines();
-
-function updateDefines()
-{
-    shader.toggleDefine("REMOVE_ALPHA_SRC", removeAlphaSrc.get());
-    shader.toggleDefine("ALPHA_MASK", inAlphaMask.get());
-
-    shader.toggleDefine("CLIP_REPEAT", inClipRepeat.get());
-
-    shader.toggleDefine("HAS_TEXTUREALPHA", imageAlpha.get() && imageAlpha.get().tex);
-
-    shader.toggleDefine("TEX_FLIP_X", flipX.get());
-    shader.toggleDefine("TEX_FLIP_Y", flipY.get());
-
-    shader.toggleDefine("INVERT_ALPHA", invAlphaChannel.get());
-
-    shader.toggleDefine("ALPHA_FROM_LUMINANCE", alphaSrc.get() == "luminance");
-    shader.toggleDefine("ALPHA_FROM_INV_UMINANCE", alphaSrc.get() == "luminance_inv");
-    shader.toggleDefine("PREMUL", inAlphaPremul.get());
-}
-
-function doRender()
-{
-    if (!CGL.TextureEffect.checkOpInEffect(op)) return;
-
-    const tex = image.get();
-    if (tex && tex.tex && amount.get() > 0.0)
-    {
-        cgl.pushShader(shader);
-        cgl.currentTextureEffect.bind();
-
-        const imgTex = cgl.currentTextureEffect.getCurrentSourceTexture();
-        cgl.setTexture(0, imgTex.tex);
-
-        // if (imgTex && tex)
-        // {
-        //     if (tex.textureType != imgTex.textureType && (tex.textureType == CGL.Texture.TYPE_FLOAT))
-        //         op.setUiError("textypediff", "Drawing 32bit texture into an 8 bit can result in data/precision loss", 1);
-        //     else
-        //         op.setUiError("textypediff", null);
-        // }
-
-        const asp = 1 / (cgl.currentTextureEffect.getWidth() / cgl.currentTextureEffect.getHeight()) * (tex.width / tex.height);
-        // uniTexAspect.setValue(1 / (tex.height / tex.width * imgTex.width / imgTex.height));
-
-        uniTexAspect.setValue(asp);
-
-        cgl.setTexture(1, tex.tex);
-        // cgl.gl.bindTexture(cgl.gl.TEXTURE_2D, image.get().tex );
-
-        if (imageAlpha.get() && imageAlpha.get().tex)
-        {
-            cgl.setTexture(2, imageAlpha.get().tex);
-            // cgl.gl.bindTexture(cgl.gl.TEXTURE_2D, imageAlpha.get().tex );
-        }
-
-        // cgl.pushBlend(false);
-
-        cgl.pushBlendMode(CGL.BLEND_NONE, true);
-
-        cgl.currentTextureEffect.finish();
-        cgl.popBlendMode();
-
-        // cgl.popBlend();
-
-        cgl.popShader();
-    }
-
-    trigger.trigger();
-}
-
-}
-};
-
-CABLES.OPS["8f6b2f15-fcb0-4597-90c0-e5173f2969fe"]={f:Ops.Gl.ImageCompose.DrawImage_v3,objName:"Ops.Gl.ImageCompose.DrawImage_v3"};
-
-
-
-
-// **************************************************************
-// 
-// Ops.Gl.ImageCompose.Desaturate
-// 
-// **************************************************************
-
-Ops.Gl.ImageCompose.Desaturate= class extends CABLES.Op 
-{
-constructor()
-{
-super(...arguments);
-const op=this;
-const attachments=op.attachments={"desaturate_frag":"\r\nIN vec2 texCoord;\r\nUNI sampler2D tex;\r\nUNI float amount;\r\n\r\n#ifdef MASK\r\n    UNI sampler2D mask;\r\n#endif\r\n\r\nvec3 desaturate(vec3 color, float amount)\r\n{\r\n   vec3 gray = vec3(dot(vec3(0.2126,0.7152,0.0722), color));\r\n   return vec3(mix(color, gray, amount));\r\n}\r\n\r\nvoid main()\r\n{\r\n    vec4 col=texture(tex,texCoord);\r\n\r\n    float am=amount;\r\n    #ifdef MASK\r\n        am*=1.0-texture(mask,texCoord).r;\r\n        #ifdef INVERTMASK\r\n        am=1.0-am;\r\n        #endif\r\n    #endif\r\n\r\n    col.rgb=desaturate(col.rgb,am);\r\n    outColor= col;\r\n}",};
-const render = op.inTrigger("render");
-const trigger = op.outTrigger("trigger");
-const amount = op.inValueSlider("amount", 1);
-const inMask = op.inTexture("Mask");
-const invertMask = op.inValueBool("Invert Mask");
-
-const cgl = op.patch.cgl;
-const shader = new CGL.Shader(cgl, op.name, op);
-
-shader.setSource(shader.getDefaultVertexShader(), attachments.desaturate_frag);
-let textureUniform = new CGL.Uniform(shader, "t", "tex", 0);
-let masktextureUniform = new CGL.Uniform(shader, "t", "mask", 1);
-let amountUniform = new CGL.Uniform(shader, "f", "amount", amount);
-
-invertMask.onChange = function ()
-{
-    if (invertMask.get())shader.define("INVERTMASK");
-    else shader.removeDefine("INVERTMASK");
-};
-
-inMask.onChange = function ()
-{
-    if (inMask.get())shader.define("MASK");
-    else shader.removeDefine("MASK");
-};
-
-render.onTriggered = function ()
-{
-    if (!CGL.TextureEffect.checkOpInEffect(op)) return;
-
-    cgl.pushShader(shader);
-    cgl.currentTextureEffect.bind();
-
-    cgl.setTexture(0, cgl.currentTextureEffect.getCurrentSourceTexture().tex);
-
-    if (inMask.get()) cgl.setTexture(1, inMask.get().tex);
-
-    cgl.currentTextureEffect.finish();
-    cgl.popShader();
-
-    trigger.trigger();
-};
-
-}
-};
-
-CABLES.OPS["340efbd5-be53-4bd5-92ad-8f38d8eeecf1"]={f:Ops.Gl.ImageCompose.Desaturate,objName:"Ops.Gl.ImageCompose.Desaturate"};
-
-
-
-
-// **************************************************************
-// 
-// Ops.Vars.VarSetTexture_v2
-// 
-// **************************************************************
-
-Ops.Vars.VarSetTexture_v2= class extends CABLES.Op 
-{
-constructor()
-{
-super(...arguments);
-const op=this;
-const attachments=op.attachments={};
-const val = op.inTexture("Value", null);
-op.varName = op.inDropDown("Variable", [], "", true);
-
-new CABLES.VarSetOpWrapper(op, "object", val, op.varName);
-
-}
-};
-
-CABLES.OPS["4fbfc71e-1429-439f-8591-ad35961252ed"]={f:Ops.Vars.VarSetTexture_v2,objName:"Ops.Vars.VarSetTexture_v2"};
-
-
-
-
-// **************************************************************
-// 
-// Ops.Vars.VarGetTexture_v2
-// 
-// **************************************************************
-
-Ops.Vars.VarGetTexture_v2= class extends CABLES.Op 
-{
-constructor()
-{
-super(...arguments);
-const op=this;
-const attachments=op.attachments={};
-const val = op.outTexture("Value");
-op.varName = op.inValueSelect("Variable", [], "", true);
-
-new CABLES.VarGetOpWrapper(op, "object", op.varName, val);
-
-}
-};
-
-CABLES.OPS["5f8ce5fc-9787-45c9-9a83-0eebd2c6de15"]={f:Ops.Vars.VarGetTexture_v2,objName:"Ops.Vars.VarGetTexture_v2"};
 
 
 
@@ -8244,6 +7353,296 @@ op.toggleNodeVisibility = function (name)
 };
 
 CABLES.OPS["c9cbb226-46f7-4ca6-8dab-a9d0bdca4331"]={f:Ops.Gl.GLTF.GltfScene_v4,objName:"Ops.Gl.GLTF.GltfScene_v4"};
+
+
+
+
+// **************************************************************
+// 
+// Ops.Gl.Texture_v2
+// 
+// **************************************************************
+
+Ops.Gl.Texture_v2= class extends CABLES.Op 
+{
+constructor()
+{
+super(...arguments);
+const op=this;
+const attachments=op.attachments={};
+const
+    filename = op.inUrl("File", [".jpg", ".png", ".webp", ".jpeg", ".avif"]),
+    tfilter = op.inSwitch("Filter", ["nearest", "linear", "mipmap"]),
+    wrap = op.inValueSelect("Wrap", ["repeat", "mirrored repeat", "clamp to edge"], "clamp to edge"),
+    aniso = op.inSwitch("Anisotropic", ["0", "1", "2", "4", "8", "16"], "0"),
+    dataFrmt = op.inSwitch("Data Format", ["R", "RG", "RGB", "RGBA", "SRGBA"], "RGBA"),
+    flip = op.inValueBool("Flip", false),
+    unpackAlpha = op.inValueBool("Pre Multiplied Alpha", false),
+    active = op.inValueBool("Active", true),
+    inFreeMemory = op.inBool("Save Memory", true),
+    textureOut = op.outTexture("Texture"),
+    addCacheBust = op.inBool("Add Cachebuster", false),
+    inReload = op.inTriggerButton("Reload"),
+    width = op.outNumber("Width"),
+    height = op.outNumber("Height"),
+    ratio = op.outNumber("Aspect Ratio"),
+    loaded = op.outBoolNum("Loaded", 0),
+    loading = op.outBoolNum("Loading", 0);
+
+const cgl = op.patch.cgl;
+
+op.toWorkPortsNeedToBeLinked(textureOut);
+op.setPortGroup("Size", [width, height]);
+
+let loadedFilename = null;
+let loadingId = null;
+let tex = null;
+let cgl_filter = CGL.Texture.FILTER_MIPMAP;
+let cgl_wrap = CGL.Texture.WRAP_REPEAT;
+let cgl_aniso = 0;
+let timedLoader = 0;
+
+unpackAlpha.setUiAttribs({ "hidePort": true });
+unpackAlpha.onChange =
+    filename.onChange =
+    dataFrmt.onChange =
+    addCacheBust.onChange =
+    flip.onChange = reloadSoon;
+aniso.onChange = tfilter.onChange = onFilterChange;
+wrap.onChange = onWrapChange;
+
+tfilter.set("mipmap");
+wrap.set("repeat");
+
+textureOut.setRef(CGL.Texture.getEmptyTexture(cgl));
+
+inReload.onTriggered = reloadSoon;
+
+active.onChange = function ()
+{
+    if (active.get())
+    {
+        if (loadedFilename != filename.get() || !tex) reloadSoon();
+        else textureOut.setRef(tex);
+    }
+    else
+    {
+        textureOut.setRef(CGL.Texture.getEmptyTexture(cgl));
+        width.set(CGL.Texture.getEmptyTexture(cgl).width);
+        height.set(CGL.Texture.getEmptyTexture(cgl).height);
+        if (tex)tex.delete();
+        op.setUiAttrib({ "extendTitle": "" });
+        tex = null;
+    }
+};
+
+const setTempTexture = function ()
+{
+    const t = CGL.Texture.getTempTexture(cgl);
+    textureOut.setRef(t);
+};
+
+function reloadSoon(nocache)
+{
+    clearTimeout(timedLoader);
+    timedLoader = setTimeout(function ()
+    {
+        realReload(nocache);
+    }, 1);
+}
+
+function getPixelFormat()
+{
+    if (dataFrmt.get() == "R") return CGL.Texture.PFORMATSTR_R8UB;
+    if (dataFrmt.get() == "RG") return CGL.Texture.PFORMATSTR_RG8UB;
+    if (dataFrmt.get() == "RGB") return CGL.Texture.PFORMATSTR_RGB8UB;
+    if (dataFrmt.get() == "SRGBA") return CGL.Texture.PFORMATSTR_SRGBA8;
+
+    return CGL.Texture.PFORMATSTR_RGBA8UB;
+}
+
+function realReload(nocache)
+{
+    op.checkMainloopExists();
+    if (!active.get()) return;
+    if (loadingId)loadingId = cgl.patch.loading.finished(loadingId);
+
+    loadingId = cgl.patch.loading.start(op.objName, filename.get(), op);
+
+    let url = op.patch.getFilePath(String(filename.get()));
+
+    if (addCacheBust.get() || nocache === true) url = CABLES.cacheBust(url);
+
+    if (String(filename.get()).indexOf("data:") == 0) url = filename.get();
+
+    let needsRefresh = false;
+    loadedFilename = filename.get();
+
+    if ((filename.get() && filename.get().length > 1))
+    {
+        loaded.set(false);
+        loading.set(true);
+
+        const fileToLoad = filename.get();
+
+        op.setUiAttrib({ "extendTitle": CABLES.basename(url) });
+        if (needsRefresh) op.refreshParams();
+
+        cgl.patch.loading.addAssetLoadingTask(() =>
+        {
+            op.setUiError("urlerror", null);
+            CGL.Texture.load(cgl, url, function (err, newTex)
+            {
+                // cgl.checkFrameStarted("texture inittexture");
+
+                if (filename.get() != fileToLoad)
+                {
+                    loadingId = cgl.patch.loading.finished(loadingId);
+                    return;
+                }
+
+                if (tex)tex.delete();
+
+                if (err)
+                {
+                    const t = CGL.Texture.getErrorTexture(cgl);
+                    textureOut.setRef(t);
+
+                    op.setUiError("urlerror", "could not load texture: \"" + filename.get() + "\"", 2);
+                    loadingId = cgl.patch.loading.finished(loadingId);
+                    return;
+                }
+
+                // textureOut.setRef(newTex);
+
+                width.set(newTex.width);
+                height.set(newTex.height);
+                ratio.set(newTex.width / newTex.height);
+
+                // if (!newTex.isPowerOfTwo()) op.setUiError("npot", "Texture dimensions not power of two! - Texture filtering will not work in WebGL 1.", 0);
+                // else op.setUiError("npot", null);
+
+                tex = newTex;
+                // textureOut.setRef(null);
+                textureOut.setRef(tex);
+
+                loading.set(false);
+                loaded.set(true);
+
+                if (inFreeMemory.get()) tex.image = null;
+
+                if (loadingId)
+                {
+                    loadingId = cgl.patch.loading.finished(loadingId);
+                }
+                op.checkMainloopExists();
+            }, {
+                "anisotropic": cgl_aniso,
+                "wrap": cgl_wrap,
+                "flip": flip.get(),
+                "unpackAlpha": unpackAlpha.get(),
+                "pixelFormat": getPixelFormat(),
+                "filter": cgl_filter
+            });
+
+            op.checkMainloopExists();
+        });
+    }
+    else
+    {
+        setTempTexture();
+        loadingId = cgl.patch.loading.finished(loadingId);
+    }
+}
+
+function onFilterChange()
+{
+    if (tfilter.get() == "nearest") cgl_filter = CGL.Texture.FILTER_NEAREST;
+    else if (tfilter.get() == "linear") cgl_filter = CGL.Texture.FILTER_LINEAR;
+    else if (tfilter.get() == "mipmap") cgl_filter = CGL.Texture.FILTER_MIPMAP;
+    else if (tfilter.get() == "Anisotropic") cgl_filter = CGL.Texture.FILTER_ANISOTROPIC;
+    aniso.setUiAttribs({ "greyout": cgl_filter != CGL.Texture.FILTER_MIPMAP });
+
+    cgl_aniso = parseFloat(aniso.get());
+
+    reloadSoon();
+}
+
+function onWrapChange()
+{
+    if (wrap.get() == "repeat") cgl_wrap = CGL.Texture.WRAP_REPEAT;
+    if (wrap.get() == "mirrored repeat") cgl_wrap = CGL.Texture.WRAP_MIRRORED_REPEAT;
+    if (wrap.get() == "clamp to edge") cgl_wrap = CGL.Texture.WRAP_CLAMP_TO_EDGE;
+
+    reloadSoon();
+}
+
+op.onFileChanged = function (fn)
+{
+    if (filename.get() && filename.get().indexOf(fn) > -1)
+    {
+        textureOut.setRef(CGL.Texture.getEmptyTexture(op.patch.cgl));
+        textureOut.setRef(CGL.Texture.getTempTexture(cgl));
+        realReload(true);
+    }
+};
+
+}
+};
+
+CABLES.OPS["790f3702-9833-464e-8e37-6f0f813f7e16"]={f:Ops.Gl.Texture_v2,objName:"Ops.Gl.Texture_v2"};
+
+
+
+
+// **************************************************************
+// 
+// Ops.Vars.VarSetObject_v2
+// 
+// **************************************************************
+
+Ops.Vars.VarSetObject_v2= class extends CABLES.Op 
+{
+constructor()
+{
+super(...arguments);
+const op=this;
+const attachments=op.attachments={};
+const val = op.inObject("Value", null);
+op.varName = op.inDropDown("Variable", [], "", true);
+
+new CABLES.VarSetOpWrapper(op, "object", val, op.varName);
+
+}
+};
+
+CABLES.OPS["c7608375-5b45-4bca-87ef-d0c5e970779a"]={f:Ops.Vars.VarSetObject_v2,objName:"Ops.Vars.VarSetObject_v2"};
+
+
+
+
+// **************************************************************
+// 
+// Ops.Vars.VarGetObject_v2
+// 
+// **************************************************************
+
+Ops.Vars.VarGetObject_v2= class extends CABLES.Op 
+{
+constructor()
+{
+super(...arguments);
+const op=this;
+const attachments=op.attachments={};
+const val = op.outObject("Value");
+op.varName = op.inValueSelect("Variable", [], "", true);
+
+new CABLES.VarGetOpWrapper(op, "object", op.varName, val);
+
+}
+};
+
+CABLES.OPS["321419d9-69c7-4310-a327-93d310bc2b8e"]={f:Ops.Vars.VarGetObject_v2,objName:"Ops.Vars.VarGetObject_v2"};
 
 
 
