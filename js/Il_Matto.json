@@ -44,11 +44,11 @@
                 },
                 {
                     "name": "width",
-                    "value": 552.5
+                    "value": 503.75
                 },
                 {
                     "name": "height",
-                    "value": 927.5
+                    "value": 658.75
                 },
                 {
                     "name": "Pixel Density",
@@ -140,15 +140,15 @@
                 },
                 {
                     "name": "radius",
-                    "value": 10
+                    "value": 11.136000000000003
                 },
                 {
                     "name": "Rot X",
-                    "value": 101.55082075690093
+                    "value": -265.73804213552825
                 },
                 {
                     "name": "Rot Y",
-                    "value": 95.18399780273438
+                    "value": 97.77600219726561
                 }
             ],
             "objName": "Ops.Graphics.OrbitControls_v3"
@@ -326,7 +326,7 @@
                         {
                             "portIn": "Render",
                             "portOut": "trigger",
-                            "objIn": "oc4cku49o",
+                            "objIn": "xkh1y0wre",
                             "objOut": "dzariw9v9"
                         }
                     ]
@@ -369,124 +369,6 @@
                 }
             ],
             "objName": "Ops.Gl.Matrix.Scale"
-        },
-        {
-            "id": "swwlk62tl",
-            "uiAttribs": {},
-            "portsIn": [
-                {
-                    "name": "data",
-                    "value": ""
-                },
-                {
-                    "name": "glb File",
-                    "value": "assets/Faccia 1.glb",
-                    "display": "file"
-                },
-                {
-                    "name": "Draw",
-                    "value": 1
-                },
-                {
-                    "name": "Camera index",
-                    "value": 0
-                },
-                {
-                    "name": "Camera",
-                    "value": "None"
-                },
-                {
-                    "name": "Animation",
-                    "value": ""
-                },
-                {
-                    "name": "Center index",
-                    "value": 1
-                },
-                {
-                    "name": "Center",
-                    "value": "XYZ"
-                },
-                {
-                    "name": "Rescale",
-                    "value": 1
-                },
-                {
-                    "name": "Rescale Size",
-                    "value": 2.5
-                },
-                {
-                    "name": "Time",
-                    "value": 0
-                },
-                {
-                    "name": "Sync to timeline",
-                    "value": 0
-                },
-                {
-                    "name": "Loop",
-                    "value": 1
-                },
-                {
-                    "name": "Normals Format index",
-                    "value": 0
-                },
-                {
-                    "name": "Normals Format",
-                    "value": "XYZ"
-                },
-                {
-                    "name": "Vertices Format index",
-                    "value": 0
-                },
-                {
-                    "name": "Vertices Format",
-                    "value": "XYZ"
-                },
-                {
-                    "name": "Calc Normals index",
-                    "value": 0
-                },
-                {
-                    "name": "Calc Normals",
-                    "value": "Auto"
-                },
-                {
-                    "name": "Hide Nodes",
-                    "value": 0
-                },
-                {
-                    "name": "Use Material Properties",
-                    "value": 0
-                },
-                {
-                    "name": "Active",
-                    "value": 1
-                }
-            ],
-            "portsOut": [
-                {
-                    "name": "Generator",
-                    "value": "Scaniverse (https://scaniverse.com)"
-                },
-                {
-                    "name": "GLTF Version",
-                    "value": 2
-                },
-                {
-                    "name": "Anim Length",
-                    "value": -1
-                },
-                {
-                    "name": "Anim Time",
-                    "value": 0
-                },
-                {
-                    "name": "Loading",
-                    "value": false
-                }
-            ],
-            "objName": "Ops.Gl.GLTF.GltfScene_v4"
         },
         {
             "id": "qca6urh77",
@@ -661,131 +543,13 @@
                         {
                             "portIn": "Render",
                             "portOut": "trigger",
-                            "objIn": "swwlk62tl",
+                            "objIn": "s7eplrswo",
                             "objOut": "ib83ed6ux"
                         }
                     ]
                 }
             ],
             "objName": "Ops.Gl.Shader.BasicMaterial_v3"
-        },
-        {
-            "id": "7exf7wldf",
-            "uiAttribs": {},
-            "portsIn": [
-                {
-                    "name": "data",
-                    "value": ""
-                },
-                {
-                    "name": "glb File",
-                    "value": "assets/Faccia 2.glb",
-                    "display": "file"
-                },
-                {
-                    "name": "Draw",
-                    "value": 1
-                },
-                {
-                    "name": "Camera index",
-                    "value": 0
-                },
-                {
-                    "name": "Camera",
-                    "value": "None"
-                },
-                {
-                    "name": "Animation",
-                    "value": ""
-                },
-                {
-                    "name": "Center index",
-                    "value": 1
-                },
-                {
-                    "name": "Center",
-                    "value": "XYZ"
-                },
-                {
-                    "name": "Rescale",
-                    "value": 1
-                },
-                {
-                    "name": "Rescale Size",
-                    "value": 2.5
-                },
-                {
-                    "name": "Time",
-                    "value": 0
-                },
-                {
-                    "name": "Sync to timeline",
-                    "value": 0
-                },
-                {
-                    "name": "Loop",
-                    "value": 1
-                },
-                {
-                    "name": "Normals Format index",
-                    "value": 0
-                },
-                {
-                    "name": "Normals Format",
-                    "value": "XYZ"
-                },
-                {
-                    "name": "Vertices Format index",
-                    "value": 0
-                },
-                {
-                    "name": "Vertices Format",
-                    "value": "XYZ"
-                },
-                {
-                    "name": "Calc Normals index",
-                    "value": 0
-                },
-                {
-                    "name": "Calc Normals",
-                    "value": "Auto"
-                },
-                {
-                    "name": "Hide Nodes",
-                    "value": 0
-                },
-                {
-                    "name": "Use Material Properties",
-                    "value": 0
-                },
-                {
-                    "name": "Active",
-                    "value": 1
-                }
-            ],
-            "portsOut": [
-                {
-                    "name": "Generator",
-                    "value": "Scaniverse (https://scaniverse.com)"
-                },
-                {
-                    "name": "GLTF Version",
-                    "value": 2
-                },
-                {
-                    "name": "Anim Length",
-                    "value": -1
-                },
-                {
-                    "name": "Anim Time",
-                    "value": 0
-                },
-                {
-                    "name": "Loading",
-                    "value": false
-                }
-            ],
-            "objName": "Ops.Gl.GLTF.GltfScene_v4"
         },
         {
             "id": "5sh3k8iq8",
@@ -960,7 +724,7 @@
                         {
                             "portIn": "Render",
                             "portOut": "trigger",
-                            "objIn": "7exf7wldf",
+                            "objIn": "cwhsa3eti",
                             "objOut": "bezf08lo6"
                         }
                     ]
@@ -1139,124 +903,6 @@
                 }
             ],
             "objName": "Ops.Graphics.Transform"
-        },
-        {
-            "id": "oc4cku49o",
-            "uiAttribs": {},
-            "portsIn": [
-                {
-                    "name": "data",
-                    "value": ""
-                },
-                {
-                    "name": "glb File",
-                    "value": "assets/Faccia 0.glb",
-                    "display": "file"
-                },
-                {
-                    "name": "Draw",
-                    "value": 1
-                },
-                {
-                    "name": "Camera index",
-                    "value": 0
-                },
-                {
-                    "name": "Camera",
-                    "value": "None"
-                },
-                {
-                    "name": "Animation",
-                    "value": ""
-                },
-                {
-                    "name": "Center index",
-                    "value": 1
-                },
-                {
-                    "name": "Center",
-                    "value": "XYZ"
-                },
-                {
-                    "name": "Rescale",
-                    "value": 1
-                },
-                {
-                    "name": "Rescale Size",
-                    "value": 2.5
-                },
-                {
-                    "name": "Time",
-                    "value": 0
-                },
-                {
-                    "name": "Sync to timeline",
-                    "value": 0
-                },
-                {
-                    "name": "Loop",
-                    "value": 1
-                },
-                {
-                    "name": "Normals Format index",
-                    "value": 0
-                },
-                {
-                    "name": "Normals Format",
-                    "value": "XYZ"
-                },
-                {
-                    "name": "Vertices Format index",
-                    "value": 0
-                },
-                {
-                    "name": "Vertices Format",
-                    "value": "XYZ"
-                },
-                {
-                    "name": "Calc Normals index",
-                    "value": 0
-                },
-                {
-                    "name": "Calc Normals",
-                    "value": "Auto"
-                },
-                {
-                    "name": "Hide Nodes",
-                    "value": 0
-                },
-                {
-                    "name": "Use Material Properties",
-                    "value": 0
-                },
-                {
-                    "name": "Active",
-                    "value": 1
-                }
-            ],
-            "portsOut": [
-                {
-                    "name": "Generator",
-                    "value": "Scaniverse (https://scaniverse.com)"
-                },
-                {
-                    "name": "GLTF Version",
-                    "value": 2
-                },
-                {
-                    "name": "Anim Length",
-                    "value": -1
-                },
-                {
-                    "name": "Anim Time",
-                    "value": 0
-                },
-                {
-                    "name": "Loading",
-                    "value": false
-                }
-            ],
-            "objName": "Ops.Gl.GLTF.GltfScene_v4"
         },
         {
             "id": "7zgqmarht",
@@ -4176,11 +3822,370 @@
                 }
             ],
             "objName": "Ops.Gl.RenderAnim_v2"
+        },
+        {
+            "id": "mljo3opwz",
+            "uiAttribs": {},
+            "objName": "Ops.Gl.GLTF.GltfDracoCompression"
+        },
+        {
+            "id": "xkh1y0wre",
+            "uiAttribs": {},
+            "portsIn": [
+                {
+                    "name": "data",
+                    "value": ""
+                },
+                {
+                    "name": "glb File",
+                    "value": "assets/Faccia 0 comp.glb",
+                    "display": "file"
+                },
+                {
+                    "name": "Draw",
+                    "value": 1
+                },
+                {
+                    "name": "Camera index",
+                    "value": 0
+                },
+                {
+                    "name": "Camera",
+                    "value": "None"
+                },
+                {
+                    "name": "Animation",
+                    "value": ""
+                },
+                {
+                    "name": "Center index",
+                    "value": 1
+                },
+                {
+                    "name": "Center",
+                    "value": "XYZ"
+                },
+                {
+                    "name": "Rescale",
+                    "value": 1
+                },
+                {
+                    "name": "Rescale Size",
+                    "value": 2.5
+                },
+                {
+                    "name": "Time",
+                    "value": 0
+                },
+                {
+                    "name": "Sync to timeline",
+                    "value": 0
+                },
+                {
+                    "name": "Loop",
+                    "value": 1
+                },
+                {
+                    "name": "Normals Format index",
+                    "value": 0
+                },
+                {
+                    "name": "Normals Format",
+                    "value": "XYZ"
+                },
+                {
+                    "name": "Vertices Format index",
+                    "value": 0
+                },
+                {
+                    "name": "Vertices Format",
+                    "value": "XYZ"
+                },
+                {
+                    "name": "Calc Normals index",
+                    "value": 0
+                },
+                {
+                    "name": "Calc Normals",
+                    "value": "Auto"
+                },
+                {
+                    "name": "Hide Nodes",
+                    "value": 0
+                },
+                {
+                    "name": "Use Material Properties",
+                    "value": 0
+                },
+                {
+                    "name": "Active",
+                    "value": 1
+                }
+            ],
+            "portsOut": [
+                {
+                    "name": "Generator",
+                    "value": "Khronos glTF Blender I/O v4.4.55"
+                },
+                {
+                    "name": "GLTF Version",
+                    "value": 2
+                },
+                {
+                    "name": "Anim Length",
+                    "value": -1
+                },
+                {
+                    "name": "Anim Time",
+                    "value": 0
+                },
+                {
+                    "name": "Loading",
+                    "value": false
+                }
+            ],
+            "objName": "Ops.Gl.GLTF.GltfScene_v4"
+        },
+        {
+            "id": "s7eplrswo",
+            "uiAttribs": {},
+            "portsIn": [
+                {
+                    "name": "data",
+                    "value": ""
+                },
+                {
+                    "name": "glb File",
+                    "value": "assets/Faccia 1 comp.glb",
+                    "display": "file"
+                },
+                {
+                    "name": "Draw",
+                    "value": 1
+                },
+                {
+                    "name": "Camera index",
+                    "value": 0
+                },
+                {
+                    "name": "Camera",
+                    "value": "None"
+                },
+                {
+                    "name": "Animation",
+                    "value": ""
+                },
+                {
+                    "name": "Center index",
+                    "value": 1
+                },
+                {
+                    "name": "Center",
+                    "value": "XYZ"
+                },
+                {
+                    "name": "Rescale",
+                    "value": 1
+                },
+                {
+                    "name": "Rescale Size",
+                    "value": 2.5
+                },
+                {
+                    "name": "Time",
+                    "value": 0
+                },
+                {
+                    "name": "Sync to timeline",
+                    "value": 0
+                },
+                {
+                    "name": "Loop",
+                    "value": 1
+                },
+                {
+                    "name": "Normals Format index",
+                    "value": 0
+                },
+                {
+                    "name": "Normals Format",
+                    "value": "XYZ"
+                },
+                {
+                    "name": "Vertices Format index",
+                    "value": 0
+                },
+                {
+                    "name": "Vertices Format",
+                    "value": "XYZ"
+                },
+                {
+                    "name": "Calc Normals index",
+                    "value": 0
+                },
+                {
+                    "name": "Calc Normals",
+                    "value": "Auto"
+                },
+                {
+                    "name": "Hide Nodes",
+                    "value": 0
+                },
+                {
+                    "name": "Use Material Properties",
+                    "value": 0
+                },
+                {
+                    "name": "Active",
+                    "value": 1
+                }
+            ],
+            "portsOut": [
+                {
+                    "name": "Generator",
+                    "value": "Khronos glTF Blender I/O v4.4.55"
+                },
+                {
+                    "name": "GLTF Version",
+                    "value": 2
+                },
+                {
+                    "name": "Anim Length",
+                    "value": -1
+                },
+                {
+                    "name": "Anim Time",
+                    "value": 0
+                },
+                {
+                    "name": "Loading",
+                    "value": false
+                }
+            ],
+            "objName": "Ops.Gl.GLTF.GltfScene_v4"
+        },
+        {
+            "id": "cwhsa3eti",
+            "uiAttribs": {},
+            "portsIn": [
+                {
+                    "name": "data",
+                    "value": ""
+                },
+                {
+                    "name": "glb File",
+                    "value": "assets/Faccia 2 comp.glb",
+                    "display": "file"
+                },
+                {
+                    "name": "Draw",
+                    "value": 1
+                },
+                {
+                    "name": "Camera index",
+                    "value": 0
+                },
+                {
+                    "name": "Camera",
+                    "value": "None"
+                },
+                {
+                    "name": "Animation",
+                    "value": ""
+                },
+                {
+                    "name": "Center index",
+                    "value": 1
+                },
+                {
+                    "name": "Center",
+                    "value": "XYZ"
+                },
+                {
+                    "name": "Rescale",
+                    "value": 1
+                },
+                {
+                    "name": "Rescale Size",
+                    "value": 2.5
+                },
+                {
+                    "name": "Time",
+                    "value": 0
+                },
+                {
+                    "name": "Sync to timeline",
+                    "value": 0
+                },
+                {
+                    "name": "Loop",
+                    "value": 1
+                },
+                {
+                    "name": "Normals Format index",
+                    "value": 0
+                },
+                {
+                    "name": "Normals Format",
+                    "value": "XYZ"
+                },
+                {
+                    "name": "Vertices Format index",
+                    "value": 0
+                },
+                {
+                    "name": "Vertices Format",
+                    "value": "XYZ"
+                },
+                {
+                    "name": "Calc Normals index",
+                    "value": 0
+                },
+                {
+                    "name": "Calc Normals",
+                    "value": "Auto"
+                },
+                {
+                    "name": "Hide Nodes",
+                    "value": 0
+                },
+                {
+                    "name": "Use Material Properties",
+                    "value": 0
+                },
+                {
+                    "name": "Active",
+                    "value": 1
+                }
+            ],
+            "portsOut": [
+                {
+                    "name": "Generator",
+                    "value": "Khronos glTF Blender I/O v4.4.55"
+                },
+                {
+                    "name": "GLTF Version",
+                    "value": 2
+                },
+                {
+                    "name": "Anim Length",
+                    "value": -1
+                },
+                {
+                    "name": "Anim Time",
+                    "value": 0
+                },
+                {
+                    "name": "Loading",
+                    "value": false
+                }
+            ],
+            "objName": "Ops.Gl.GLTF.GltfScene_v4"
         }
     ],
     "export": {
-        "time": "2025-09-01 15:02",
+        "time": "2025-09-01 15:47",
         "service": "html",
-        "exportNumber": 2
+        "exportNumber": 3
     }
 }
