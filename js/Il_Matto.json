@@ -44,11 +44,11 @@
                 },
                 {
                     "name": "width",
-                    "value": 511.25
+                    "value": 552.5
                 },
                 {
                     "name": "height",
-                    "value": 677.5
+                    "value": 927.5
                 },
                 {
                     "name": "Pixel Density",
@@ -63,7 +63,7 @@
             "portsIn": [
                 {
                     "name": "min distance",
-                    "value": 7
+                    "value": 10
                 },
                 {
                     "name": "max distance",
@@ -140,15 +140,15 @@
                 },
                 {
                     "name": "radius",
-                    "value": 8.728
+                    "value": 10
                 },
                 {
                     "name": "Rot X",
-                    "value": 66.07315706315065
+                    "value": 101.55082075690093
                 },
                 {
                     "name": "Rot Y",
-                    "value": 104.9759950327787
+                    "value": 95.18399780273438
                 }
             ],
             "objName": "Ops.Graphics.OrbitControls_v3"
@@ -974,7 +974,7 @@
             "portsOut": [
                 {
                     "name": "Switched Value",
-                    "value": 0
+                    "value": 1
                 },
                 {
                     "name": "Trigger 0",
@@ -4176,16 +4176,11 @@
                 }
             ],
             "objName": "Ops.Gl.RenderAnim_v2"
-        },
-        {
-            "id": "6s7gysq1p",
-            "uiAttribs": {},
-            "objName": "Ops.Gl.GLTF.GltfDracoCompression"
         }
     ],
     "export": {
-        "time": "2025-09-01 14:57",
+        "time": "2025-09-01 15:02",
         "service": "html",
-        "exportNumber": 1
+        "exportNumber": 2
     }
 }

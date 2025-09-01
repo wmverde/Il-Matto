@@ -4,6 +4,5 @@ OP AUTHORS:
 - ops by cables user tim (https://cables.gl/user/tim)
 - ops by cables user simod (https://cables.gl/user/simod)
 - Photoshop math GLSL shaders by Romain Dura (https://mouaif.wordpress.com/2009/01/05/photoshop-math-with-glsl-shaders/)
-- DRACO Compression Loader by three.js (https://github.com/mrdoob/three.js/blob/master/examples/jsm/loaders/DRACOLoader.js)
 
 cables is built on open source software and community contributions, check https://cables.gl/support
