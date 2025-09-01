@@ -44,11 +44,11 @@
                 },
                 {
                     "name": "width",
-                    "value": 1146.25
+                    "value": 511.25
                 },
                 {
                     "name": "height",
-                    "value": 842.5
+                    "value": 677.5
                 },
                 {
                     "name": "Pixel Density",
@@ -140,15 +140,15 @@
                 },
                 {
                     "name": "radius",
-                    "value": 7.648000000000001
+                    "value": 8.728
                 },
                 {
                     "name": "Rot X",
-                    "value": 90.68753881794821
+                    "value": 66.07315706315065
                 },
                 {
                     "name": "Rot Y",
-                    "value": 92.01600218838242
+                    "value": 104.9759950327787
                 }
             ],
             "objName": "Ops.Graphics.OrbitControls_v3"
@@ -2169,12 +2169,12 @@
                 },
                 {
                     "name": "Width",
-                    "value": 2048,
+                    "value": 768,
                     "useVariable": "text_w"
                 },
                 {
                     "name": "Height",
-                    "value": 1024,
+                    "value": 384,
                     "useVariable": "text_h"
                 },
                 {
@@ -2259,11 +2259,11 @@
                 },
                 {
                     "name": "Texture Width",
-                    "value": 2048
+                    "value": 768
                 },
                 {
                     "name": "Texture Height",
-                    "value": 1024
+                    "value": 384
                 }
             ],
             "objName": "Ops.Gl.ImageCompose.ImageCompose_v4"
@@ -2409,12 +2409,12 @@
                 },
                 {
                     "name": "Width",
-                    "value": 2048,
+                    "value": 768,
                     "useVariable": "text_w"
                 },
                 {
                     "name": "Height",
-                    "value": 1024,
+                    "value": 384,
                     "useVariable": "text_h"
                 },
                 {
@@ -2499,11 +2499,11 @@
                 },
                 {
                     "name": "Texture Width",
-                    "value": 2048
+                    "value": 768
                 },
                 {
                     "name": "Texture Height",
-                    "value": 1024
+                    "value": 384
                 }
             ],
             "objName": "Ops.Gl.ImageCompose.ImageCompose_v4"
@@ -2649,12 +2649,12 @@
                 },
                 {
                     "name": "Width",
-                    "value": 2048,
+                    "value": 768,
                     "useVariable": "text_w"
                 },
                 {
                     "name": "Height",
-                    "value": 1024,
+                    "value": 384,
                     "useVariable": "text_h"
                 },
                 {
@@ -2739,11 +2739,11 @@
                 },
                 {
                     "name": "Texture Width",
-                    "value": 2048
+                    "value": 768
                 },
                 {
                     "name": "Texture Height",
-                    "value": 1024
+                    "value": 384
                 }
             ],
             "objName": "Ops.Gl.ImageCompose.ImageCompose_v4"
@@ -3092,7 +3092,7 @@
             "portsIn": [
                 {
                     "name": "value",
-                    "value": 2
+                    "value": 0.75
                 }
             ],
             "portsOut": [
@@ -4086,171 +4086,6 @@
             "objName": "Ops.Gl.Matrix.Scale"
         },
         {
-            "id": "klgv74ey3",
-            "uiAttribs": {},
-            "portsIn": [
-                {
-                    "name": "Recording",
-                    "value": 0
-                },
-                {
-                    "name": "Filename",
-                    "value": "cables"
-                },
-                {
-                    "name": "Download Video",
-                    "value": 1
-                },
-                {
-                    "name": "Mimetype index",
-                    "value": 0
-                },
-                {
-                    "name": "Mimetype",
-                    "value": 0
-                },
-                {
-                    "name": "MBit",
-                    "value": 5
-                },
-                {
-                    "name": "Max FPS",
-                    "value": 30
-                },
-                {
-                    "name": "Force FPS",
-                    "value": 0
-                },
-                {
-                    "name": "Media index",
-                    "value": 0
-                },
-                {
-                    "name": "Media",
-                    "value": "Video"
-                },
-                {
-                    "name": "Canvas index",
-                    "value": 0
-                },
-                {
-                    "name": "Canvas",
-                    "value": "Default"
-                },
-                {
-                    "name": "Video Canvas Id",
-                    "value": "glcanvas"
-                }
-            ],
-            "portsOut": [
-                {
-                    "name": "State",
-                    "value": ""
-                },
-                {
-                    "name": "Error",
-                    "value": ""
-                },
-                {
-                    "name": "Final Mimetype",
-                    "value": ""
-                },
-                {
-                    "name": "Duration",
-                    "value": 0
-                },
-                {
-                    "name": "Video DataUrl",
-                    "value": ""
-                }
-            ],
-            "objName": "Ops.Gl.MediaRecorder_v2"
-        },
-        {
-            "id": "3pe0udk8k",
-            "uiAttribs": {},
-            "portsIn": [
-                {
-                    "name": "Filename",
-                    "value": "Il Matto 1"
-                }
-            ],
-            "objName": "Ops.Gl.SaveScreenShot_v3"
-        },
-        {
-            "id": "8lfd7qc95",
-            "uiAttribs": {},
-            "portsIn": [
-                {
-                    "name": "Active",
-                    "value": 1
-                },
-                {
-                    "name": "Force index",
-                    "value": 0
-                },
-                {
-                    "name": "Force",
-                    "value": "Resolution"
-                },
-                {
-                    "name": "Center In Parent",
-                    "value": 1
-                },
-                {
-                    "name": "Scale to fit Parent",
-                    "value": 1
-                },
-                {
-                    "name": "Set Width",
-                    "value": 300
-                },
-                {
-                    "name": "Set Height",
-                    "value": 200
-                },
-                {
-                    "name": "Aspect Ratio index",
-                    "value": 3
-                },
-                {
-                    "name": "Aspect Ratio",
-                    "value": "16:9"
-                },
-                {
-                    "name": "Ratio",
-                    "value": 0
-                },
-                {
-                    "name": "Fill Parent index",
-                    "value": 0
-                },
-                {
-                    "name": "Fill Parent",
-                    "value": "Auto"
-                }
-            ],
-            "portsOut": [
-                {
-                    "name": "Width",
-                    "value": 0
-                },
-                {
-                    "name": "Height",
-                    "value": 0
-                },
-                {
-                    "name": "Margin Left",
-                    "value": 0
-                },
-                {
-                    "name": "Margin Top",
-                    "value": 0
-                }
-            ],
-            "objName": "Ops.Gl.ForceCanvasSize"
-        },
-        {
             "id": "e8wqoxcc4",
             "uiAttribs": {},
             "portsIn": [
@@ -4341,10 +4176,15 @@
                 }
             ],
             "objName": "Ops.Gl.RenderAnim_v2"
+        },
+        {
+            "id": "6s7gysq1p",
+            "uiAttribs": {},
+            "objName": "Ops.Gl.GLTF.GltfDracoCompression"
         }
     ],
     "export": {
-        "time": "2025-09-01 14:13",
+        "time": "2025-09-01 14:57",
         "service": "html",
         "exportNumber": 1
     }

@@ -7618,643 +7618,6 @@ CABLES.OPS["0816c999-f2db-466b-9777-2814573574c5"]={f:Ops.Trigger.TriggerReceive
 
 // **************************************************************
 // 
-// Ops.Gl.MediaRecorder_v2
-// 
-// **************************************************************
-
-Ops.Gl.MediaRecorder_v2= class extends CABLES.Op 
-{
-constructor()
-{
-super(...arguments);
-const op=this;
-const attachments=op.attachments={};
-const videoTypes = ["webm", "mp4", "x-matroska"];
-const audioTypes = ["webm", "mp3", "x-matroska"];
-const videoCodecs = ["vp9", "vp8", "avc1", "av1", "h265", "h264", "mpeg", "mp4a"];
-const audioCodecs = ["opus", "pcm", "aac", "mp3", "ogg"];
-
-const supportedVideos = getSupportedMimeTypes("video", videoTypes, videoCodecs, audioCodecs);
-
-let startTime = 0;
-let duration = 0;
-
-function getSupportedMimeTypes(media, types, codecs, codecsB)
-{
-    const isSupported = MediaRecorder.isTypeSupported;
-    const supported = [];
-
-    types.forEach((type) =>
-    {
-        const mimeType = `${media}/${type}`;
-        if (isSupported(mimeType))
-            supported.push(mimeType);
-    });
-
-    types.forEach((type) =>
-    {
-        const mimeType = `${media}/${type}`;
-        codecs.forEach((codec) =>
-        {
-            return [`${mimeType};codecs=${codec}`].forEach((variation) =>
-            {
-                if (isSupported(variation)) supported.push(variation);
-
-                codecsB.forEach((codecB) =>
-                {
-                    return [`${mimeType};codecs=${codec},${codecB}`].forEach((eachVariation) =>
-                    {
-                        if (isSupported(eachVariation)) supported.push(eachVariation);
-                    });
-                });
-            });
-        });
-    });
-    return supported;
-}
-
-// /////////////////
-
-const
-    recordingToggle = op.inBool("Recording", false),
-
-    inFilename = op.inString("Filename", "cables"),
-    inDownl = op.inBool("Download Video", true),
-
-    inCodecs = op.inDropDown("Mimetype", supportedVideos),
-    inMbit = op.inFloat("MBit", 5),
-    inFPSMax = op.inFloat("Max FPS", 30),
-    inFPS = op.inFloat("Force FPS", 0),
-
-    inMedia = op.inSwitch("Media", ["Video", "Audio", "Audio+Video"], "Video"),
-    inAudio = op.inObject("Audio In", null, "audioNode"),
-
-    inCanvasWhich = op.inSwitch("Canvas", ["Default", "By Id"], "Default"),
-    inCanvasId = op.inString("Video Canvas Id", "glcanvas"),
-
-    outState = op.outString("State"),
-    outError = op.outString("Error"),
-    outCodec = op.outString("Final Mimetype"),
-    outCodecs = op.outArray("Valid Mimetypes", supportedVideos),
-    outDuration = op.outNumber("Duration"),
-    outFinished = op.outTrigger("Finished Recording"),
-
-    outDataUrl = op.outString("Video DataUrl");
-
-op.setPortGroup("Inputs", [inMedia, inAudio]);
-op.setPortGroup("Canvas", [inCanvasId, inCanvasWhich]);
-op.setPortGroup("Encoding", [inMbit, inCodecs, inFPS, inFPSMax]);
-
-const gl = op.patch.cgl.gl;
-let fb = null;
-const cgl = op.patch.cgl;
-
-let cgl_filter = 0;
-let cgl_wrap = 0;
-let tex = null;
-let timeout = null;
-let firstTime = true;
-let mediaRecorder;
-let recordedBlobs;
-let sourceBuffer;
-
-recordingToggle.onChange = toggleRecording;
-
-inFPSMax.onChange =
-    inFPS.onChange =
-    inMbit.onChange =
-    inMedia.onChange =
-    inAudio.onChange =
-    inCanvasId.onChange =
-    inCanvasWhich.onChange =
-    inCodecs.onChange = setupMediaRecorder;
-
-op.patch.cgl.on("resize", () =>
-{
-    if (mediaRecorder && mediaRecorder.state === "active")mediaRecorder.stop();
-    mediaRecorder = null;
-});
-
-setupMediaRecorder();
-
-function handleDataAvailable(event)
-{
-    if (event.data && event.data.size > 0)
-    {
-        recordedBlobs.push(event.data);
-    }
-}
-
-function toggleRecording()
-{
-    if (recordingToggle.get())
-    {
-        startTime = performance.now();
-        startRecording();
-    }
-    else
-    {
-        duration = performance.now() - startTime;
-        outDuration.set(duration);
-        stopRecording();
-    }
-}
-
-function setupMediaRecorder()
-{
-    outCodec.set("unknown");
-
-    outState.set("");
-    outCodec.set("");
-    outError.set("");
-    op.setUiError("constr", null);
-    op.setUiError("audionoaudio", null);
-    op.setUiError("nocanvas", null);
-    mediaRecorder = null;
-
-    if (inCodecs.get() === "" || inCodecs.get() === 0)
-    {
-        return;
-    }
-
-    let codec = inCodecs.get();
-
-    if (supportedVideos.indexOf(codec) == -1)
-    {
-        codec = supportedVideos[0];
-        op.logWarn("incompaticle codec, switching to first one:", codec);
-    }
-
-    let options = { "mimeType": codec, "videoBitsPerSecond": inMbit.get() * 1024 * 1024 };
-    recordedBlobs = [];
-    try
-    {
-        let canvas = op.patch.cgl.canvas;
-
-        inCanvasId.setUiAttribs({ "greyout": inCanvasWhich.get() == "Default" });
-
-        if (inCanvasWhich.get() == "By Id")
-            canvas = document.getElementById(inCanvasId.get());
-
-        if (!canvas)
-        {
-            op.setUiError("nocanvas", "canvas not found ");
-            return;
-        }
-        canvas.getContext("2d");
-        const streamVid = canvas.captureStream(inFPSMax.get());
-
-        let stream = streamVid;
-        if (inMedia.get() !== "Video")
-        {
-            const audioCtx = CABLES.WEBAUDIO.createAudioContext(op);
-            const streamAudio = audioCtx.createMediaStreamDestination();
-
-            if (!inAudio.get())
-            {
-                op.setUiError("audionoaudio", "no audio connected ");
-                return;
-            }
-            inAudio.get().connect(streamAudio);
-
-            if (inMedia.get() === "Audio+Video")stream = new MediaStream([...streamVid.getTracks(), ...streamAudio.stream.getTracks()]);
-            else stream = streamAudio.stream ? streamAudio.stream : streamAudio;
-        }
-
-        mediaRecorder = new MediaRecorder(stream, options);
-    }
-    catch (err)
-    {
-        op.error(err);
-        op.error("error mr constructor: ", err);
-        outError.set(err.message);
-        op.setUiError("contr", "MediaRecorder error: " + err.message);
-    }
-    if (mediaRecorder)
-    {
-        outState.set(mediaRecorder.state);
-        outCodec.set(mediaRecorder.mimeType);
-    }
-    else
-    {
-        op.warn("no mediarecorder created...");
-    }
-}
-
-// The nested try blocks will be simplified when Chrome 47 moves to Stable
-function startRecording()
-{
-    if (!mediaRecorder)setupMediaRecorder();
-    if (!mediaRecorder)
-    {
-        op.setUiError("noobj", "could not create mediarecorder, try setting all parameters");
-        return;
-    }
-
-    recordedBlobs = [];
-
-    op.setUiError("noobj", null);
-
-    op.verbose("start recording: ", inCodecs.get());
-
-    mediaRecorder.ondataavailable = handleDataAvailable;
-    mediaRecorder.start(1000);
-    outState.set(mediaRecorder.state);
-
-    if (inFPS.get() != 0)
-    {
-        mediaRecorder.pause();
-        interValRecording();
-    }
-    op.log("MediaRecorder started", mediaRecorder);
-}
-
-function interValRecording()
-{
-    if (mediaRecorder.state === "inactive") return;
-    mediaRecorder.resume();
-
-    setTimeout(
-        () =>
-        {
-            if (mediaRecorder && mediaRecorder.state != "inactive") mediaRecorder.pause();
-            interValRecording();
-        }, 1000 / inFPS.get());
-}
-
-function stopRecording()
-{
-    if (!mediaRecorder)
-    {
-        // op.warn("cant stop no mediarecorder");
-        return;
-    }
-
-    op.verbose("mediaRecorder.state", mediaRecorder.state);
-    if (mediaRecorder.state === "inactive") return;
-
-    // op.verbose("mediaRecorder.videoBitsPerSecond  ", mediaRecorder.videoBitsPerSecond / 1024 / 1024);
-    // op.verbose("mediaRecorder.mimeType  ", mediaRecorder.mimeType);
-    outCodec.set(mediaRecorder.mimeType);
-
-    mediaRecorder.onstop = download;
-
-    mediaRecorder.stop();
-    outState.set(mediaRecorder.state);
-    op.verbose("Recorded Blobs: ", recordedBlobs);
-    // download();
-}
-
-function download()
-{
-    if (recordedBlobs.length === 0)
-    {
-        op.warn("download canceled, no recordedBlobs");
-    }
-
-    if (!mediaRecorder) return;
-
-    const blob = new Blob(recordedBlobs, { "type": "application/octet-stream" });
-
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.style.display = "none";
-    a.href = url;
-    const codec = mediaRecorder.mimeType;
-    let ext = "webm";
-    if (codec.indexOf("video/x-matroska") >= 0)ext = "mkv";
-    if (codec.indexOf("video/mp4") >= 0)ext = "mp4";
-
-    if (inDownl.get())
-    {
-        a.download = (inFilename.get() || "cables") + "." + ext;
-        document.body.appendChild(a);
-        a.click();
-    }
-
-    if (inDownl.get())
-        setTimeout(() =>
-        {
-            document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);
-        }, 100);
-
-    outDataUrl.set(url);
-    //     outBlobs.setRef({ "blob": blob, "duration": duration });
-    // }
-    outFinished.trigger();
-}
-
-}
-};
-
-CABLES.OPS["685c632b-b9da-4c6e-aa22-0cfefb533dbf"]={f:Ops.Gl.MediaRecorder_v2,objName:"Ops.Gl.MediaRecorder_v2"};
-
-
-
-
-// **************************************************************
-// 
-// Ops.Gl.SaveScreenShot_v3
-// 
-// **************************************************************
-
-Ops.Gl.SaveScreenShot_v3= class extends CABLES.Op 
-{
-constructor()
-{
-super(...arguments);
-const op=this;
-const attachments=op.attachments={};
-const
-    filename = op.inString("Filename", "cables"),
-    exe = op.inTriggerButton("Screenshot"),
-    outNext = op.outTrigger("Finished");
-
-
-const cgl = op.patch.cgl;
-
-exe.onTriggered = function ()
-{
-    cgl.saveScreenshot(
-        filename.get(),
-        function ()
-        {
-            outNext.trigger();
-
-            op.patch.resume();
-        }
-    );
-};
-
-
-}
-};
-
-CABLES.OPS["76843a4d-947f-41ca-9c8f-0faa6ce7380a"]={f:Ops.Gl.SaveScreenShot_v3,objName:"Ops.Gl.SaveScreenShot_v3"};
-
-
-
-
-// **************************************************************
-// 
-// Ops.Gl.ForceCanvasSize
-// 
-// **************************************************************
-
-Ops.Gl.ForceCanvasSize= class extends CABLES.Op 
-{
-constructor()
-{
-super(...arguments);
-const op=this;
-const attachments=op.attachments={};
-const
-    inTrigger = op.inTrigger("Trigger"),
-    inActive = op.inBool("Active", true),
-    inWhat = op.inSwitch("Force", ["Resolution", "Aspect Ratio"], "Resolution"),
-    inCenter = op.inBool("Center In Parent", true),
-    inScaleFit = op.inBool("Scale to fit Parent", true),
-    inWidth = op.inInt("Set Width", 300),
-    inHeight = op.inInt("Set Height", 200),
-    inPresets = op.inDropDown("Aspect Ratio", ["Custom", "21:9", "2:1", "16:9", "16:10", "4:3", "1:1", "9:16", "1:2", "iPhoneXr Vert"], "16:9"),
-    inRatio = op.inFloat("Ratio", 0),
-    inStretch = op.inDropDown("Fill Parent", ["Auto", "Width", "Height", "Both"], "Auto"),
-    next = op.outTrigger("Next"),
-    outWidth = op.outNumber("Width"),
-    outHeight = op.outNumber("Height"),
-    outMarginLeft = op.outNumber("Margin Left"),
-    outMarginTop = op.outNumber("Margin Top");
-
-op.setPortGroup("Size", [inWidth, inHeight]);
-op.setPortGroup("Proportions", [inRatio, inStretch, inPresets]);
-
-let align = 0;
-const ALIGN_NONE = 0;
-const ALIGN_WIDTH = 1;
-const ALIGN_HEIGHT = 2;
-const ALIGN_BOTH = 3;
-const ALIGN_AUTO = 4;
-
-inStretch.onChange = updateUi;
-inWhat.onChange = updateMethod;
-inCenter.onChange =
-    inTrigger.onLinkChanged = removeStyles;
-
-inPresets.onChange = updateRatioPreset;
-
-const cgl = op.patch.cgl;
-
-// if (window.getComputedStyle(cgl.canvas).position === "absolute")
-// {
-//     cgl.canvas.style.position = "initial";
-//     op.warn("[cables forceCanvasSize] - canvas was positioned absolute, not compatible with Ops.Gl.ForceCanvasSize");
-// }
-
-updateUi();
-
-function updateMethod()
-{
-    if (inWhat.get() == "Aspect Ratio")
-    {
-        inRatio.set(100);
-        updateRatioPreset();
-    }
-    updateUi();
-}
-
-function updateRatioPreset()
-{
-    const pr = inPresets.get();
-    if (pr == "Custom") return;
-    else if (pr == "16:9")inRatio.set(16 / 9);
-    else if (pr == "4:3")inRatio.set(4 / 3);
-    else if (pr == "16:10")inRatio.set(16 / 10);
-    else if (pr == "21:9")inRatio.set(21 / 9);
-    else if (pr == "2:1")inRatio.set(2);
-    else if (pr == "1:1")inRatio.set(1);
-    else if (pr == "9:16")inRatio.set(9 / 16);
-    else if (pr == "1:2")inRatio.set(0.5);
-    else if (pr == "iPhoneXr Vert")inRatio.set(9 / 19.5);
-}
-
-op.on("delete", () =>
-{
-    removeStyles();
-});
-
-inRatio.onChange = () =>
-{
-    removeStyles();
-};
-
-inActive.onChange = function ()
-{
-    if (!inActive.get())removeStyles();
-};
-
-function updateUi()
-{
-    const forceRes = inWhat.get() == "Resolution";
-    inWidth.setUiAttribs({ "greyout": !forceRes });
-    inHeight.setUiAttribs({ "greyout": !forceRes });
-
-    inPresets.setUiAttribs({ "greyout": forceRes });
-    inStretch.setUiAttribs({ "greyout": forceRes });
-    inRatio.setUiAttribs({ "greyout": forceRes });
-
-    align = 0;
-
-    if (!forceRes)
-    {
-        const strAlign = inStretch.get();
-        if (strAlign == "Width")align = ALIGN_WIDTH;
-        else if (strAlign == "Height")align = ALIGN_HEIGHT;
-        else if (strAlign == "Both")align = ALIGN_BOTH;
-        else if (strAlign == "Auto")align = ALIGN_AUTO;
-    }
-}
-
-function removeStyles()
-{
-    cgl.canvas.style["margin-top"] = "";
-    cgl.canvas.style["margin-left"] = "";
-    cgl.canvas.styleMarginLeft = 0;
-    cgl.canvas.styleMarginTop = 0;
-
-    outMarginLeft.set(0);
-    outMarginTop.set(0);
-
-    const rect = cgl.canvas.parentNode.getBoundingClientRect();
-
-    cgl.setSize(rect.width, rect.height);
-
-    cgl.canvas.style.transform = "scale(1)";
-
-    cgl.canvas.style.position = "absolute";
-
-    cgl.updateSize();
-}
-
-inTrigger.onTriggered = function ()
-{
-    if (!inActive.get()) return next.trigger();
-
-    let w = inWidth.get();
-    let h = inHeight.get();
-
-    let clientRect = cgl.canvas.parentNode.getBoundingClientRect();
-
-    // console.log("clientrect",clientRect);
-
-    if (clientRect.height == 0)
-    {
-        cgl.canvas.parentNode.style.height = "100%";
-        clientRect = cgl.canvas.parentNode.getBoundingClientRect();
-    }
-    if (clientRect.width == 0)
-    {
-        cgl.canvas.parentNode.style.width = "100%";
-        clientRect = cgl.canvas.parentNode.getBoundingClientRect();
-    }
-
-    if (align == ALIGN_WIDTH)
-    {
-        w = clientRect.width;
-        h = w * 1 / inRatio.get();
-    }
-    else if (align == ALIGN_HEIGHT)
-    {
-        h = clientRect.height;
-        w = h * inRatio.get();
-    }
-    else if (align == ALIGN_AUTO)
-    {
-        const rect = clientRect;
-
-        h = rect.height;
-        w = h * inRatio.get();
-
-        if (w > rect.width)
-        {
-            w = rect.width;
-            h = w * 1 / inRatio.get();
-        }
-    }
-    else if (align == ALIGN_BOTH)
-    {
-        const rect = clientRect;
-        h = rect.height;
-        w = h * inRatio.get();
-
-        if (w < rect.width)
-        {
-            w = rect.width;
-            h = w * 1 / inRatio.get();
-        }
-    }
-
-    w = Math.ceil(w);
-    h = Math.ceil(h);
-
-    if (inCenter.get())
-    {
-        const rect = clientRect;
-
-        const t = (rect.height - h) / 2;
-        const l = (rect.width - w) / 2;
-
-        outMarginLeft.set(l);
-        outMarginTop.set(t);
-
-        cgl.canvas.style["margin-top"] = t + "px";
-        cgl.canvas.style["margin-left"] = l + "px";
-        cgl.canvas.styleMarginTop = t;
-        cgl.canvas.styleMarginLeft = l;
-    }
-    else
-    {
-        cgl.canvas.style["margin-top"] = "0";
-        cgl.canvas.style["margin-left"] = "0";
-        cgl.canvas.styleMarginTop = 0;
-        cgl.canvas.styleMarginLeft = 0;
-
-        outMarginLeft.set(0);
-        outMarginTop.set(0);
-    }
-
-    if (inScaleFit.get())
-    {
-        const rect = clientRect;
-        const scX = rect.width / inWidth.get();
-        const scY = rect.height / inHeight.get();
-        cgl.canvas.style.transform = "scale(" + Math.min(scX, scY) + ")";
-    }
-    else
-    {
-        cgl.canvas.style.transform = "scale(1)";
-    }
-
-    if (cgl.canvasWidth != w || cgl.canvasHeight != h)
-    {
-        outWidth.set(w);
-        outHeight.set(h);
-        cgl.setSize(w, h);
-    }
-    // else
-    next.trigger();
-};
-
-}
-};
-
-CABLES.OPS["a8b3380e-cd4a-4000-9ee9-1c65a11027dd"]={f:Ops.Gl.ForceCanvasSize,objName:"Ops.Gl.ForceCanvasSize"};
-
-
-
-
-// **************************************************************
-// 
 // Ops.Gl.RenderAnim_v2
 // 
 // **************************************************************
@@ -8609,6 +7972,278 @@ function blobToDataURL(blob, callback)
 };
 
 CABLES.OPS["c05e54a3-3ed5-4941-a412-01134f53f0ac"]={f:Ops.Gl.RenderAnim_v2,objName:"Ops.Gl.RenderAnim_v2"};
+
+
+
+
+// **************************************************************
+// 
+// Ops.Gl.GLTF.GltfDracoCompression
+// 
+// **************************************************************
+
+Ops.Gl.GLTF.GltfDracoCompression= class extends CABLES.Op 
+{
+constructor()
+{
+super(...arguments);
+const op=this;
+const attachments=op.attachments={};
+class DracoDecoderClass
+{
+    constructor()
+    {
+        this.workerLimit = 4;
+        this.workerPool = [];
+        this.workerNextTaskID = 1;
+        this.workerSourceURL = "";
+
+        this.config = {
+            "wasm": Uint8Array.from(atob(DracoDecoderWASM), (c) => { return c.charCodeAt(0); }),
+            "wrapper": DracoWASMWrapperCode,
+            "decoderSettings": {},
+        };
+
+        const dracoWorker = this._DracoWorker.toString();
+        const workerCode = dracoWorker.substring(dracoWorker.indexOf("{") + 1, dracoWorker.lastIndexOf("}"));
+
+        const jsContent = this.config.wrapper;
+        const body = [
+            "/* draco decoder */",
+            jsContent,
+            "",
+            "/* worker */",
+            workerCode
+        ].join("\n");
+
+        this.workerSourceURL = URL.createObjectURL(new Blob([body]));
+    }
+
+    _getWorker(taskID, taskCost)
+    {
+        if (this.workerPool.length < this.workerLimit)
+        {
+            const worker = new Worker(this.workerSourceURL);
+            worker._callbacks = {};
+            worker._taskCosts = {};
+            worker._taskLoad = 0;
+            worker.postMessage({ "type": "init", "decoderConfig": this.config });
+            worker.onmessage = (e) =>
+            {
+                const message = e.data;
+
+                switch (message.type)
+                {
+                case "done":
+                    worker._callbacks[message.taskID].finishedCallback(message.geometry);
+                    break;
+
+                case "error":
+                    worker._callbacks[message.taskID].errorCallback(message);
+                    break;
+
+                default:
+                    op.error("THREE.DRACOLoader: Unexpected message, \"" + message.type + "\"");
+                }
+                this._releaseTask(worker, message.taskID);
+            };
+            this.workerPool.push(worker);
+        }
+        else
+        {
+            this.workerPool.sort(function (a, b)
+            {
+                return a._taskLoad > b._taskLoad ? -1 : 1;
+            });
+        }
+
+        const worker = this.workerPool[this.workerPool.length - 1];
+        worker._taskCosts[taskID] = taskCost;
+        worker._taskLoad += taskCost;
+        return worker;
+    }
+
+    decodeGeometry(buffer, finishedCallback, errorCallback = null)
+    {
+        const taskID = this.workerNextTaskID++;
+        const taskCost = buffer.byteLength;
+
+        const worker = this._getWorker(taskID, taskCost);
+        worker._callbacks[taskID] = { finishedCallback, errorCallback };
+        worker.postMessage({ "type": "decode", "taskID": taskID, buffer }, [buffer]);
+    }
+
+    _releaseTask(worker, taskID)
+    {
+        worker._taskLoad -= worker._taskCosts[taskID];
+        delete worker._callbacks[taskID];
+        delete worker._taskCosts[taskID];
+    }
+
+    _DracoWorker()
+    {
+        let pendingDecoder;
+
+        onmessage = function (e)
+        {
+            const message = e.data;
+            switch (message.type)
+            {
+            case "init":
+                const decoderConfig = message.decoderConfig;
+                const moduleConfig = decoderConfig.decoderSettings;
+                pendingDecoder = new Promise(function (resolve)
+                {
+                    moduleConfig.onModuleLoaded = function (draco)
+                    {
+                        // Module is Promise-like. Wrap before resolving to avoid loop.
+                        resolve({ "draco": draco });
+                    };
+                    moduleConfig.wasmBinary = decoderConfig.wasm;
+                    DracoDecoderModule(moduleConfig); // eslint-disable-line no-undef
+                });
+                break;
+            case "decode":
+                pendingDecoder.then((module) =>
+                {
+                    const draco = module.draco;
+
+                    const f = new draco.Decoder();
+                    const dataBuff = new Int8Array(message.buffer);
+
+                    const geometryType = f.GetEncodedGeometryType(dataBuff);
+                    const buffer = new draco.DecoderBuffer();
+                    buffer.Init(dataBuff, dataBuff.byteLength);
+
+                    let outputGeometry = new draco.Mesh();
+                    const status = f.DecodeBufferToMesh(buffer, outputGeometry);
+                    const attribute = f.GetAttributeByUniqueId(outputGeometry, 1);
+                    const geometry = dracoAttributes(draco, f, outputGeometry, geometryType, name);
+
+                    this.postMessage({ "type": "done", "taskID": message.taskID, "geometry": geometry });
+
+                    draco.destroy(f);
+                    draco.destroy(buffer);
+                });
+                break;
+            }
+        };
+
+        let dracoAttributes = function (draco, decoder, dracoGeometry, geometryType, name)
+        {
+            const attributeIDs = {
+                "position": draco.POSITION,
+                "normal": draco.NORMAL,
+                "color": draco.COLOR,
+                "uv": draco.TEX_COORD,
+                "joints": draco.GENERIC,
+                "weights": draco.GENERIC,
+            };
+            const attributeTypes = {
+                "position": "Float32Array",
+                "normal": "Float32Array",
+                "color": "Float32Array",
+                "weights": "Float32Array",
+                "joints": "Uint8Array",
+                "uv": "Float32Array"
+            };
+
+            const geometry = {
+                "index": null,
+                "attributes": []
+            };
+
+            let count = 0;
+            for (const attributeName in attributeIDs)
+            {
+                const attributeType = attributeTypes[attributeName];
+                let attributeID = decoder.GetAttributeId(dracoGeometry, attributeIDs[attributeName]);
+
+                count++;
+                if (attributeID != -1)
+                {
+                    let attribute = decoder.GetAttribute(dracoGeometry, attributeID);
+                    geometry.attributes.push(decodeAttribute(draco, decoder, dracoGeometry, attributeName, attributeType, attribute));
+                }
+            }
+
+            if (geometryType === draco.TRIANGULAR_MESH) geometry.index = decodeIndex(draco, decoder, dracoGeometry);
+            else op.warn("unknown draco geometryType", geometryType);
+
+            draco.destroy(dracoGeometry);
+            return geometry;
+        };
+
+        let decodeIndex = function (draco, decoder, dracoGeometry)
+        {
+            const numFaces = dracoGeometry.num_faces();
+            const numIndices = numFaces * 3;
+            const byteLength = numIndices * 4;
+            const ptr = draco._malloc(byteLength);
+
+            decoder.GetTrianglesUInt32Array(dracoGeometry, byteLength, ptr);
+            const index = new Uint32Array(draco.HEAPF32.buffer, ptr, numIndices).slice();
+
+            draco._free(ptr);
+
+            return {
+                "array": index,
+                "itemSize": 1
+            };
+        };
+
+        let decodeAttribute = function (draco, decoder, dracoGeometry, attributeName, attributeType, attribute)
+        {
+            let bytesPerElement = 4;
+            if (attributeType === "Float32Array") bytesPerElement = 4;
+            else if (attributeType === "Uint8Array") bytesPerElement = 1;
+            else op.warn("unknown attrtype bytesPerElement", attributeType);
+
+            const numComponents = attribute.num_components();
+            const numPoints = dracoGeometry.num_points();
+            const numValues = numPoints * numComponents;
+            const byteLength = numValues * bytesPerElement;
+            const dataType = getDracoDataType(draco, attributeType);
+            const ptr = draco._malloc(byteLength);
+            let array = null;
+
+            decoder.GetAttributeDataArrayForAllPoints(dracoGeometry, attribute, dataType, byteLength, ptr);
+
+            if (attributeType === "Float32Array") array = new Float32Array(draco.HEAPF32.buffer, ptr, numValues).slice();
+            else if (attributeType === "Uint8Array") array = new Uint8Array(draco.HEAPF32.buffer, ptr, numValues).slice();
+            else op.warn("unknown attrtype", attributeType);
+
+            draco._free(ptr);
+
+            return {
+                "name": attributeName,
+                "array": array,
+                "itemSize": numComponents
+            };
+        };
+
+        let getDracoDataType = function (draco, attributeType)
+        {
+            switch (attributeType)
+            {
+            case "Float32Array": return draco.DT_FLOAT32;
+            case "Int8Array": return draco.DT_INT8;
+            case "Int16Array": return draco.DT_INT16;
+            case "Int32Array": return draco.DT_INT32;
+            case "Uint8Array": return draco.DT_UINT8;
+            case "Uint16Array": return draco.DT_UINT16;
+            case "Uint32Array": return draco.DT_UINT32;
+            }
+        };
+    }
+}
+
+window.DracoDecoder = new DracoDecoderClass();
+
+}
+};
+
+CABLES.OPS["4ecdc2ef-a242-4548-ad74-13f617119a64"]={f:Ops.Gl.GLTF.GltfDracoCompression,objName:"Ops.Gl.GLTF.GltfDracoCompression"};
 
 
 
